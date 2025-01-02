@@ -1,0 +1,6 @@
+{
+    "watch": ["src/**/*.ts"],
+    "ext": "ts",
+    "exec": "npm run test"
+  }
+  
