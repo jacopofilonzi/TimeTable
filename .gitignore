@@ -34,3 +34,6 @@ jspm_packages/
 
 # Windows system files
 Thumbs.db
+
+# Docker compose
+redis-data/

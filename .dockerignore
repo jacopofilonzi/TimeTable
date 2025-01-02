@@ -4,6 +4,9 @@ Dockerfile
 # Ignore node_modules
 node_modules
 
+# Ignore docker compose data
+redis-data/
+
 # Ignore log files
 *.log
 

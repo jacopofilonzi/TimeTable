@@ -1,0 +1,30 @@
+services:
+  timetable:
+    build: .
+    container_name: timetable_server
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    networks:
+      - timetable_network
+    restart: unless-stopped
+    depends_on:
+      - redis
+  redis:
+    image: redis:latest
+    container_name: timetable_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis-data/:/data
+    env_file:
+      - .env
+    networks:
+      - timetable_network
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    restart: unless-stopped
+
+networks:
+  timetable_network:
+    external: false
