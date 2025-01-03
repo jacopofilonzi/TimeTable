@@ -11,7 +11,7 @@ const redis = new Redis({
 
 
 redis.on("connect", () => {
-    console.log("[Redis] Connected to Redis");
+    console.log("[Redis] Connecting to Redis");
 });
 
 redis.on("reconnecting", () => {
