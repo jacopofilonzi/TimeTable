@@ -108,10 +108,10 @@ router.get("/:university/lessons.ics", async (req, res) => {
 
         for (const lesson of lessons) {
             calendar.createEvent({
-                start: lesson.starts_at,
-                end: lesson.ends_at,
+                start: new Date(lesson.starts_at),
+                end: new Date(lesson.ends_at),
                 summary: lesson.subject,
-                description: lesson.Teacher,
+                description: lesson.teacher,
                 location: lesson.location
             });
         }

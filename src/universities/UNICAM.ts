@@ -91,11 +91,13 @@ export default new University({
         const lessons: Lesson[] = [];
 
         for (const element of lezioni_raw) {
+            console.log(element.start)
+
             lessons.push({
-                starts_at: new Date(element.start),
-                ends_at: new Date(element.end),
+                starts_at: element.start,
+                ends_at: element.end,
                 subject: element.title,
-                Teacher: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[1],
+                teacher: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[1],
                 location: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[0]
             })
         }

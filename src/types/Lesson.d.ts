@@ -1,7 +1,7 @@
 export default interface Lesson {
-    starts_at: Date,
-    ends_at: Date,
+    starts_at: string,
+    ends_at: string,
     subject: string,
-    Teacher: string,
+    teacher: string,
     location: string,
 }
