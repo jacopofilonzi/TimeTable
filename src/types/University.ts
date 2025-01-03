@@ -139,7 +139,7 @@ export default class University {
         const fetch_lessons = await this.GetLessons({course_id, course_year});
 
         //Save on cache
-        redis.hset(`lessons:${this.denomination.toLowerCase()}:${course_id}`, `${course_year}`, JSON.stringify(fetch_lessons), "EX", 60 * 60 * 24); //1 day
+        redis.hset(`lessons:${this.denomination.toLowerCase()}:${course_id}`, `${course_year}`, JSON.stringify(fetch_lessons), "EX", 60 * 60 * 24 * 3); //3 day
 
         //Return fetched lessons
         return fetch_lessons;
