@@ -1,30 +1,33 @@
 services:
   timetable:
     build: .
-    container_name: timetable_server
+    name: timetable_app
+    restart: unless-stopped
     # ports:
       # - "3000:3000"
-    env_file:
-      - .env
+    environment:
+      # - PORT=3000
+      # - REDIS_HOST=redis
+      # - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     networks:
-      - timetable_network
-    restart: unless-stopped
+      - timetable_net
     depends_on:
       - redis
   redis:
     image: redis:latest
     container_name: timetable_redis
+    restart: unless-stopped
     # ports:
       # - "6379:6379"
     volumes:
       - ./redis-data/:/data
-    env_file:
-      - .env
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD} # MANDATORY
     networks:
-      - timetable_network
+      - timetable_net
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
-    restart: unless-stopped
 
 networks:
-  timetable_network:
+  timetable_net:
     external: false
