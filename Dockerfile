@@ -12,5 +12,6 @@ COPY --from=builder /app/build /app/build
 COPY --from=builder /app/public /app/public
 COPY --from=builder /app/package*.json /app
 COPY --from=builder /app/node_modules /app/node_modules
-EXPOSE 3000
+ENV PORT 3000
+EXPOSE ${PORT}
 CMD ["node", "/app/build/app.js"]
