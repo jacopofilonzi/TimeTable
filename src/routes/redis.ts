@@ -1,13 +1,23 @@
 import { Router } from 'express';
-import redis from '../redis';
+import redis, { isRedisConnected } from '../redis';
 
 const router = Router();
 
 router.get("/purge", async (req, res) => {
-    res.send("<p>Redis password:</p> <form action='/redis/purge' method='post' id='ciao'><input type='password' id='password' name='password'><input type='submit' value='submit'></form>");
+    if (await isRedisConnected())
+        res.send("<p>Redis password:</p> <form action='/redis/purge' method='post' id='ciao'><input type='password' id='password' name='password'><input type='submit' value='submit'></form>");
+    else
+        res.send({ code: 500, message: "Redis connection error" });
 });
 
 router.post("/purge", async (req, res) => {
+
+    if (await !isRedisConnected())
+    {
+        res.send({ code: 500, message: "Redis connection error" });
+        return;
+    }
+
 
     //Get the user's honeypot status
     const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;

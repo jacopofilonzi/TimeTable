@@ -91,8 +91,6 @@ export default new University({
         const lessons: Lesson[] = [];
 
         for (const element of lezioni_raw) {
-            console.log(element.start)
-
             lessons.push({
                 starts_at: element.start,
                 ends_at: element.end,

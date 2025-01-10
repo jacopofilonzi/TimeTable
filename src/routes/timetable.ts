@@ -31,8 +31,7 @@ router.get("/:university/courses", async (req, res) => {
     }
 
     try {
-        // const courses = await universita.GetCourses(req.query);
-        const courses = await universita.CacheCourses();
+        const courses = await universita.GetCourses(req.query);
         res.send(courses);
     } catch (error: any) {
 
@@ -64,7 +63,7 @@ router.get("/:university/lessons", async (req, res) => {
     }
 
     try {
-        const lessons = await universita.CacheLessons((req.query.course_id as string), (req.query.course_year as string));
+        const lessons = await universita.GetLessons(req.query);
         res.send(lessons);
     } catch (error: any) {
 
@@ -103,7 +102,7 @@ router.get("/:university/lessons.ics", async (req, res) => {
 
 
     try {
-        const lessons = await universita.CacheLessons((req.query.course_id as string), (req.query.course_year as string));
+        const lessons = await universita.GetLessons(req.query);
 
 
         for (const lesson of lessons) {
@@ -111,7 +110,7 @@ router.get("/:university/lessons.ics", async (req, res) => {
                 start: new Date(lesson.starts_at),
                 end: new Date(lesson.ends_at),
                 summary: lesson.subject,
-                description: lesson.teacher,
+                description: lesson.teacher + '<br><br><i><b>Powered by <a href="https://orario.filonzi.it/">TimeTable</a></b></i>',
                 location: lesson.location
             });
         }

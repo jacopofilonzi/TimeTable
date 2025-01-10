@@ -9,20 +9,23 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <div class="container bg-white p-4 rounded-lg shadow text-center d-flex align-items-center" style="max-width: 50rem;">
-        <img src="/logo.png" alt="Logo" class="mr-3" style="height: 50px;">
-        <div class="mx-auto">
-            <h1 class="text-dark">Welcome to the TimeTable</h1>
-            <p class="text-secondary">Add your university calendar to any ics-compatible calendar</p>
-            <small>List all the universities</small>
-            <code class="replaceUrl">{{url}}/timetable/universities</code>
-            <small>Get the courses avaiables for that university</small>
-            <code class="replaceUrl">{{url}}/timetable/<span>&lt;university&gt;</span>/courses</code>
-            <small>Get the lessons for that course and year</small>
-            <code class="replaceUrl">{{url}}/timetable/<span>&lt;university&gt;</span>/lessons?course_id=<span>x</span>&course_year=<span>x</span></code>
-            <small>Get the lessons for that course and year in iCal format</small>
-            <code class="replaceUrl">{{url}}/timetable/<span>&lt;university&gt;</span>/lessons.ics?course_id=<span>x</span>&course_year=<span>x</span></code>
+    <div class="container bg-white p-4 rounded-lg shadow  align-items-center " style="max-width: 50rem;">
+        <div class="d-flex flex-row align-items-center">
+
+            <img src="/logo.png" alt="Logo" class="mr-3" style="height: 50px;">
+            <div class="mx-auto text-center d-flex flex-column">
+                <h1 class="text-dark">Welcome to the TimeTable</h1>
+                <p class="text-secondary">Add your university calendar to any ics-compatible calendar</p>
+            </div>
         </div>
+        <small>List all the universities</small>
+        <code class="replaceUrl">{{url}}/timetable/universities</code>
+        <small>Get the courses avaiables for that university</small>
+        <code class="replaceUrl">{{url}}/timetable/<span>&lt;university&gt;</span>/courses</code>
+        <small>Get the lessons for that course and year</small>
+        <code class="replaceUrl">{{url}}/timetable/<span>&lt;university&gt;</span>/lessons?course_id=<span>x</span>&course_year=<span>x</span></code>
+        <small>Get the lessons for that course and year in iCal format</small>
+        <code class="replaceUrl">{{url}}/timetable/<span>&lt;university&gt;</span>/lessons.ics?course_id=<span>x</span>&course_year=<span>x</span></code>
     </div>
 
     <footer class="mt-3 text-center">

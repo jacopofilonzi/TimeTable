@@ -1,9 +1,11 @@
-import redis from "../redis.js";
+import { Request } from "express";
+import redis, { isRedisConnected } from "../redis.js";
 import Course from "./Course.js";
 import Lesson from "./Lesson.js";
+import crypto from "crypto";
 
-export type FNUniversityGetCourses = (query: object) => Promise<Course[]>;
-export type FNUniversityGetLessons = (query: object) => Promise<Lesson[]>;
+export type FNUniversityGetCourses = (query: Request["query"]) => Promise<Course[]>;
+export type FNUniversityGetLessons = (query: Request["query"]) => Promise<Lesson[]>;
 
 export interface UniversityConstructorParams {
     name: string;
@@ -40,15 +42,6 @@ export default class University {
     }
 
     /**
-     * Set the name of the university
-     * 
-     * @param {string} name The name of the university
-     */
-    set Name(name: string) {
-        this.name = name;
-    }
-
-    /**
      * Get the denomination of the university
      * 
      * @returns {string} The denomination of the university
@@ -56,98 +49,78 @@ export default class University {
     get Denomination(): string {
         return this.denomination;
     }
-
-    /**
-     * Set the denomination of the university
-     * 
-     * @param {string} denomination The denomination of the university
-     */
-    set Denomination(denomination: string) {
-        this.denomination = denomination;
-    }
+    //#endregion
+    
+    
+    //#region Methods
 
     /**
      * Get the courses of the university
      * 
-     * @returns {FNUniversityGetCourses} The courses of the university
+     * @param query express request query
+     * @returns {Promise<Course[]>} The courses of the university
      */
-    get GetCourses(): FNUniversityGetCourses {
-        return this.getCourses;
-    }
+    public async GetCourses(query: Request["query"]): Promise<Course[]> {
 
-    /**
-     * Set the courses of the university
-     * 
-     * @param {FNUniversityGetCourses} getCourses The courses of the university
-     */
-    set GetCourses(getCourses: FNUniversityGetCourses) {
-        this.getCourses = getCourses;
+        //If redis is not connected
+        if (await !isRedisConnected())
+            return await this.getCourses(query);
+        else
+        {
+            //Query redis for cached values
+            const cache_courses = await redis.hget(`courses:${this.denomination.toLowerCase()}`, `courses`);
+
+            //If cache is not empty return it
+            if (cache_courses != null)
+                return JSON.parse(cache_courses);
+
+
+            //Cache is empty, fetch courses
+            const fetch_courses = await this.getCourses(query);
+
+            //Save on cache
+            redis.hset(`courses:${this.denomination.toLowerCase()}`, `courses`, JSON.stringify(fetch_courses), "EX", 60 * 60 * 24 * 7 * 3); //3 weeks
+
+            //Return fetched courses
+            return fetch_courses;
+
+        }
+
     }
 
     /**
      * Get the lessons of the university
      * 
-     * @returns {FNUniversityGetLessons} The lessons of the university
+     * @param query 
+     * @returns {Promise<Lesson[]>} The lessons of the university
      */
-    get GetLessons(): FNUniversityGetLessons {
-        return this.getLessons;
-    }
-
-    /**
-     * Set the lessons of the university
-     * 
-     * @param {FNUniversityGetLessons} getLessons The lessons of the university
-     */
-    set GetLessons(getLessons: FNUniversityGetLessons) {
-        this.getLessons = getLessons;
-    }
-    //#endregion
-
-
-    //#region Methods
-
-    public async CacheCourses(): Promise<Course[]> {
-
-        const cache_courses = await redis.hget(`courses:${this.denomination.toLowerCase()}`, `courses`);
-
-        //If cache is not empty return it
-        if (cache_courses != null)
-            return JSON.parse(cache_courses);
-
-        
-        //Fech courses
-        const fetch_courses = await this.GetCourses({});
-
-        //Save on cache
-        redis.hset(`courses:${this.denomination.toLowerCase()}`, `courses`, JSON.stringify(fetch_courses), "EX", 60 * 60 * 24 * 7 * 3); //3 weeks
-        
-        //Return fetched courses
-        return fetch_courses;
-    }
-
-    public async CacheLessons(course_id: string, course_year: string): Promise<Lesson[]> {
-    
-        const cache_lessons = await redis.hget(`lessons:${this.denomination.toLowerCase()}:${course_id}`, `${course_year}`);
-
-        //If cache is not empty return it
-        if (cache_lessons != null)
+    public async GetLessons(query: Request["query"]): Promise<Lesson[]> {
+        //If redis is not connected
+        if (await !isRedisConnected())
+            return await this.getLessons(query);
+        else
         {
-            return JSON.parse(cache_lessons);
+            //Create a hash of the query for better storage
+            const queryHash = crypto.createHash('sha256').update(JSON.stringify(query)).digest('hex');
+        
+            //Query redis for cached values
+            const cache_lessons = await redis.hget(`lessons:${this.denomination.toLowerCase()}`, queryHash);
+
+            //If cache is not empty return it
+            if (cache_lessons != null)
+                return JSON.parse(cache_lessons);
+
+            //Cache is empty, fetch lessons
+            const fetch_lessons = await this.getLessons(query);
+
+            //Save on cache
+            redis.hset(`lessons:${this.denomination.toLowerCase()}`, queryHash, JSON.stringify(fetch_lessons), "EX", 60 * 60 * 24 * 3); //3 days
+
+            //Return fetched lessons
+            return fetch_lessons;
         }
 
-        //Fech lessons
-        const fetch_lessons = await this.GetLessons({course_id, course_year});
-
-        //Save on cache
-        redis.hset(`lessons:${this.denomination.toLowerCase()}:${course_id}`, `${course_year}`, JSON.stringify(fetch_lessons), "EX", 60 * 60 * 24 * 3); //3 day
-
-        //Return fetched lessons
-        return fetch_lessons;
-
-
-    
     }
-
 
     //#endregion
 }
