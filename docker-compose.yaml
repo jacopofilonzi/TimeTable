@@ -1,6 +1,6 @@
 services:
   timetable:
-    build: .
+    image: timetable:latest
     name: timetable_app
     restart: unless-stopped
     # ports:
