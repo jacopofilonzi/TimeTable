@@ -24,14 +24,6 @@ app.use('/timetable', timetable);
 
 import redis from './routes/redis';
 app.use('/redis', redis);
-
-//Redirect old endpoint to new one
-app.get("/orario/unicam/ics", async (req, res) => {
-    //Redirect to new endpoint
-    const queryParamsString = Object.keys(req.query).map(key => `${key}=${req.query[key]}`).join('&');
-    res.redirect(301, `/timetable/unicam/lessons.ics?${queryParamsString}`);
-});
-
 //#endregion
 
 
