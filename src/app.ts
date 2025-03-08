@@ -17,7 +17,7 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 // Middleware to filter and log every request
 app.use((req: Request, res: Response, next) => {
 
-    console.debug(`[DEBUG] [${ParseDate(new Date())}] || request logger || ${req.method}: ${req.url} || ${req.headers["cf-connecting-ip"] || req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip}`)
+    console.debug(`[DEBUG] [${new Date().toLocaleString("it-IT", {timeZone: "Europe/Rome"})}] || request logger || ${req.method}: ${req.url} || ${req.headers["cf-connecting-ip"] || req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip}`)
 
     // console.debug("[DEBUG]","new request", {
     //     url: req.url,
