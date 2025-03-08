@@ -17,12 +17,14 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 // Middleware to filter and log every request
 app.use((req: Request, res: Response, next) => {
 
-    console.debug("[DEBUG]","new request", {
-        url: req.url,
-        method: req.method,
-        ip_addr: req.headers["cf-connecting-ip"] || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
-        date: ParseDate(new Date())
-    })
+    console.debug(`[DEBUG] [${ParseDate(new Date())}] || request logger || ${req.method}: ${req.url} || ${req.headers["cf-connecting-ip"] || req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip}`)
+
+    // console.debug("[DEBUG]","new request", {
+    //     url: req.url,
+    //     method: req.method,
+    //     ip_addr: req.headers["cf-connecting-ip"] || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+    //     date: ParseDate(new Date())
+    // })
 
     next();
 });
