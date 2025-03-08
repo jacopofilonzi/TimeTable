@@ -20,7 +20,7 @@ app.use((req: Request, res: Response, next) => {
     console.debug("[DEBUG]","new request", {
         url: req.url,
         method: req.method,
-        ip_addr: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+        ip_addr: req.headers["cf-connecting-ip"] || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
         date: ParseDate(new Date())
     })
 
