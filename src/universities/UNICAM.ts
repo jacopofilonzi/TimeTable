@@ -74,9 +74,9 @@ export default new University({
             url.searchParams.append("filename", "../didattica/controller/orari.php");       //
             url.searchParams.append("class", "OrariController");                            //
             url.searchParams.append("method", "getDateLezioniByPercorsoCalendar");          //
-            url.searchParams.append("parametri[]", query.course_id);                              // Course ID
+            url.searchParams.append("parametri[]", query.course_id);                        // Course ID
             url.searchParams.append("parametri[]", "false");                                //
-            url.searchParams.append("parametri[]", query.course_year);                            // Course Year
+            url.searchParams.append("parametri[]", query.course_year);                      // Course Year
             url.searchParams.append("start", startDate.toISOString());                      // Start date
             url.searchParams.append("end", endDate.toISOString());                          // End date
 
@@ -92,16 +92,14 @@ export default new University({
 
         for (const element of lezioni_raw) {
             const webexLink = await getWebexLinks(element.idLezione)
-            console.log(webexLink)
+
             lessons.push({
                 starts_at: element.start,
                 ends_at: element.end,
                 subject: element.title,
-                // teacher: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[1],
                 teacher: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[1],
                 description: `Link webex: \n${webexLink.join("\n")}`,
                 location: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[0],
-                // meetingURL: webexLink || undefined
             })
         }
 
