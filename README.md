@@ -30,4 +30,5 @@ $ docker compose up -d
 - **PORT** - [optional] <br>TimeTable app port. Leave empty to default to 3000.
 - **REDIS_HOST** - [optional] <br>Redis hostname/IP. Leave empty if using the default docker-compose file.
 - **REDIS_PORT** - [optional] <br>Redis host port. Leave empty to default to 6379
-- **REDIS_PASSWORD** - REQUIRED <br>Redis password. <br>This password secures Redis and allows you to manually clear the cache via the `/redis/purge` endpoint.
+- **REDIS_PASSWORD** - REQUIRED <br>Redis password. <br>This password secures Redis
+- **ADMIN_OTP-TOKEN** - [optional] <br>Allow to manually clear the cache via the `/redis/purge` endpoint using a rolling TOTP key.
