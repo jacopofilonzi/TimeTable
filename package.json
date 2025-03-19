@@ -9,7 +9,7 @@
     "build": "rimraf /build && npx tsc"
   },
   "author": "Filonzi Jacopo",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.3",
