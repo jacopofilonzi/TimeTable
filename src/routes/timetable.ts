@@ -112,12 +112,12 @@ router.get("/:university/lessons.ics", async (req, res) => {
                 description += `Teacher: \n${lesson.teacher}\n\n`;
 
             description += `${lesson.description}\n\n`;
-
+            description += '<br><br><i><b>Powered by <a href="https://orario.filonzi.it/">TimeTable</a></b></i>'
+            
             calendar.createEvent({
                 start: new Date(lesson.starts_at),
                 end: new Date(lesson.ends_at),
                 summary: lesson.subject,
-                // description: `` lesson.teacher + '<br><br><i><b>Powered by <a href="https://orario.filonzi.it/">TimeTable</a></b></i>',
                 description: description,
                 location: lesson.location
             });
