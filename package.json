@@ -1,6 +1,6 @@
 {
   "name": "calendario-lezioni",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "ripropone il calendario della propria università con un api ical per consentirne la sincronizzazione da una app generica di calendario",
   "main": "build/app.js",
   "scripts": {
