@@ -63,7 +63,7 @@ export default class University {
     public async GetCourses(query: Request["query"]): Promise<Course[]> {
 
         //If redis is not connected
-        if (await !isRedisConnected())
+        if (!await isRedisConnected())
             return await this.getCourses(query);
         else
         {
@@ -96,7 +96,7 @@ export default class University {
      */
     public async GetLessons(query: Request["query"]): Promise<Lesson[]> {
         //If redis is not connected
-        if (await !isRedisConnected())
+        if (!await isRedisConnected())
             return await this.getLessons(query);
         else
         {
