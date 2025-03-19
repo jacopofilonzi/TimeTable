@@ -91,12 +91,17 @@ export default new University({
         const lessons: Lesson[] = [];
 
         for (const element of lezioni_raw) {
+            const webexLink = await getWebexLinks(element.idLezione)
+            console.log(webexLink)
             lessons.push({
                 starts_at: element.start,
                 ends_at: element.end,
                 subject: element.title,
+                // teacher: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[1],
                 teacher: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[1],
-                location: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[0]
+                description: `Link webex: \n${webexLink.join("\n")}`,
+                location: element.description.split(` <div style="height:8px"></div><b>Docenti:</b> `)[0],
+                // meetingURL: webexLink || undefined
             })
         }
 
@@ -104,3 +109,39 @@ export default new University({
         return lessons;
     }
 })
+
+async function getWebexLinks(idLezione: string): Promise<string[]> {
+    const url = new URL("https://unifare.unicam.it//controller/ajaxController.php");
+    url.searchParams.append("class", "OrariController");
+    url.searchParams.append("filename", "../didattica/controller/orari.php");
+    url.searchParams.append("method", "getModalDataLezione");
+    url.searchParams.append("parametri[]", idLezione);
+    url.searchParams.append("parametri[]", "false");
+
+    try {
+        const response = await fetch(url.toString());
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        
+        const html = await response.text();
+        const doc = new JSDOM(html).window.document;
+        
+        // Find the table row with <th> containing 'Docenti'
+        const rows = doc.querySelectorAll("tr");
+        const urls: string[] = [];
+        
+        for (const row of rows) {
+            const th = row.querySelector("th");
+            if (th && th.textContent?.trim() === "Docenti") {
+                const anchors = row.querySelectorAll("td a");
+                anchors.forEach(a => {
+                    const href = a.getAttribute("href");
+                    if (href) urls.push(href);
+                });
+            }
+        }
+        return urls;
+    } catch (error) {
+        console.error("Error fetching or parsing HTML:", error);
+        return [];
+    }
+}
