@@ -109,7 +109,7 @@ router.get("/:university/lessons.ics", async (req, res) => {
             var description = ""
             
             if (lesson.teacher)
-                description += `Teacher: ${lesson.teacher}\n\n`;
+                description += `Teacher: \n${lesson.teacher}\n\n`;
 
             description += `${lesson.description}\n\n`;
 
