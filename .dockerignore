@@ -1,0 +1,20 @@
+# Ignore target directory (build artifacts)
+target
+
+# Ignore local environment files
+.env
+
+# Ignore editor or OS files
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Ignore Git metadata
+.git
+.gitignore
+
+# Ignore logs and temp files
+*.log
+tmp

@@ -1,0 +1,41 @@
+services:
+  timetable:
+    image: timetable:latest
+    name: timetable_app
+    restart: unless-stopped
+    # ports:
+      # - "3000:3000"
+    environment:
+      # Server configuration
+      # - PORT=8080
+      # - BIND_ADDRESS=127.0.0.1
+      - RUST_LOG=info
+
+      # Redis configuration
+      - REDIS_HOST=redis
+      # - REDIS_PORT=6379
+      # - REDIS_DB=0
+      # - REDIS_USER=default
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - timetable_net
+    depends_on:
+      - redis
+  redis:
+    image: redis:latest
+    container_name: timetable_redis
+    hostname: redis
+    restart: unless-stopped
+    # ports:
+      # - "6379:6379"
+    volumes:
+      - ./redis-data/:/data
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD} # MANDATORY
+    networks:
+      - timetable_net
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+
+networks:
+  timetable_net:
+    external: false
