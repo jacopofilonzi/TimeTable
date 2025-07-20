@@ -1,5 +1,6 @@
 // External libraries
 use actix_web::{App, HttpServer, middleware::Logger, web::Data};
+use actix_files as fs;
 
 // Internal modules
 use crate::redis_helper::connection_manager::RedisClient;
@@ -15,12 +16,18 @@ pub async fn start_webserver(redis_client: RedisClient) -> std::io::Result<()> {
         .ok()
         .unwrap_or("0.0.0.0".to_string());
 
-    // let redis_data = Data::new(redis_client.client);
+    let logger_format = std::env::var("ACTIX_LOG_FORMAT").ok();
+
 
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(redis_client.client.clone()).clone()) // Share Redis client across handlers
-            .wrap(Logger::default()) // Enable logging middleware
+            .wrap(
+                match &logger_format {
+                    Some(format) => Logger::new(format), // Use custom log format if provided
+                    None => Logger::default(), // Default logger
+                }
+            ) // Enable logging middleware
             .service(super::courses::get_courses)
             .service(super::lessons::get_lessons)
             .service(super::lessons_ics::get_ics_lessons)
