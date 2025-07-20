@@ -34,7 +34,7 @@ impl RedisClient {
     fn get_connection_string() -> String {
         let credentials = RedisCredentials {
             username: std::env::var("REDIS_USER").ok().or(None),
-            password: std::env::var("REDIS_PASSWD").ok().or(None),
+            password: std::env::var("REDIS_PASSWORD").ok().or(None),
             host: std::env::var("REDIS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
             port: std::env::var("REDIS_PORT")
                 .ok()
