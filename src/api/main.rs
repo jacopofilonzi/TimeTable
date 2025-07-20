@@ -13,7 +13,7 @@ pub async fn start_webserver(redis_client: RedisClient) -> std::io::Result<()> {
 
     let bind_address: String = std::env::var("BIND_ADDRESS")
         .ok()
-        .unwrap_or("127.0.0.1".to_string());
+        .unwrap_or("0.0.0.0".to_string());
 
     // let redis_data = Data::new(redis_client.client);
 
