@@ -24,6 +24,12 @@ pub async fn start_webserver(redis_client: RedisClient) -> std::io::Result<()> {
             .service(super::courses::get_courses)
             .service(super::lessons::get_lessons)
             .service(super::lessons_ics::get_ics_lessons)
+            .service(
+                fs::Files::new("/", "./src/public")
+                    .index_file("index.html") // Serve index.html as the default file
+                    .use_last_modified(true) // Use last modified header
+                    .use_etag(true) // Use ETag for caching
+            )
     })
     .bind((bind_address, port))?
     .run()
