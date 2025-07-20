@@ -23,6 +23,7 @@ pub async fn start_webserver(redis_client: RedisClient) -> std::io::Result<()> {
             .wrap(Logger::default()) // Enable logging middleware
             .service(super::courses::get_courses)
             .service(super::lessons::get_lessons)
+            .service(super::lessons_ics::get_ics_lessons)
     })
     .bind((bind_address, port))?
     .run()
