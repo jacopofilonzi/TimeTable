@@ -1,7 +1,7 @@
 services:
   timetable:
     image: timetable:latest
-    name: timetable_app
+    container_name: timetable_server
     restart: unless-stopped
     # ports:
       # - "3000:3000"
