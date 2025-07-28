@@ -32,10 +32,19 @@ pub async fn start_webserver(redis_client: RedisClient) -> std::io::Result<()> {
             .service(super::lessons::get_lessons)
             .service(super::lessons_ics::get_ics_lessons)
             .service(
-                fs::Files::new("/", "./src/public")
-                    .index_file("index.html") // Serve index.html as the default file
-                    .use_last_modified(true) // Use last modified header
-                    .use_etag(true) // Use ETag for caching
+                match cfg!(debug_assertions) { // Check if in debug mode
+                    // Serve static files from the public directory in debug mode
+                    true => fs::Files::new("/", "./src/public")
+                        .index_file("index.html") // Serve index.html as the default file
+                        .use_last_modified(true) // Use last modified header
+                        .use_etag(true) // Use ETag for caching
+                        .show_files_listing(), // Show directory listing in debug mode
+                    // Serve static files from the /www/timetable directory in release mode
+                    false => fs::Files::new("/", "/www/timetable")
+                        .index_file("index.html") // Serve index.html as the default file
+                        .use_last_modified(true) // Use last modified header
+                        .use_etag(true) // Use ETag for caching
+                }
             )
     })
     .bind((bind_address, port))?

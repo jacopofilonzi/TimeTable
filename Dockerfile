@@ -18,6 +18,8 @@ RUN cargo build --release
 # Stage 2: Create a minimal runtime image
 FROM debian:bookworm-slim
 
+COPY src/public /www/timetable
+
 # Install any runtime dependencies if needed (e.g. SSL certs)
 RUN apt-get update && apt-get install -y \
     libssl3 \
