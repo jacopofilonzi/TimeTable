@@ -1,8 +1,9 @@
 # Example deployment: TimeTable + Redis. Values come from `.env` (see .env.example).
 # The service speaks plain HTTP; put a reverse proxy in front of it for HTTPS.
+name: timetable
 
 services:
-  timetable:
+  server:
     build: .
     image: timetable:latest
     container_name: timetable
