@@ -1,0 +1,46 @@
+---
+import '../styles/global.css';
+import { useT, type Lang } from '../lib/i18n';
+
+interface Props {
+  lang: Lang;
+  /** Keep the page out of search engines (e.g. the admin page). */
+  noindex?: boolean;
+}
+
+const { lang, noindex = false } = Astro.props;
+const t = useT(lang);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={t('meta.description')} />
+    <meta name="theme-color" content="#f0f0f0" />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <link rel="icon" href={`${base}/favicon.ico`} />
+    <title>{t('meta.title')}</title>
+  </head>
+  <body class="flex flex-col items-center px-4 py-8 sm:py-12">
+    <main class="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-lg">
+      <slot />
+    </main>
+
+    <footer class="mt-6 space-y-1 text-center text-sm text-neutral-500">
+      <p>{t('footer.opensource')}</p>
+      <p>
+        <a class="underline hover:text-neutral-800" href="https://github.com/jacopofilonzi/TimeTable" target="_blank" rel="noopener">TimeTable</a>
+        <span class="mx-1">|</span>
+        <a class="underline hover:text-neutral-800" href="https://github.com/jacopofilonzi" target="_blank" rel="noopener">Filonzi Jacopo</a>
+      </p>
+      <p>&copy; 2024 – <span id="year">{new Date().getFullYear()}</span>, {t('footer.rights')}</p>
+    </footer>
+    <script>
+      const year = document.getElementById('year');
+      if (year) year.textContent = String(new Date().getFullYear());
+    </script>
+  </body>
+</html>

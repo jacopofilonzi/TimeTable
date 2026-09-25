@@ -1,3 +1,5 @@
-/target
 .env
-/cache
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/.astro/

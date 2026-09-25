@@ -1,20 +1,9 @@
-# Ignore target directory (build artifacts)
-target
-
-# Ignore local environment files
+.git
 .env
-
-# Ignore editor or OS files
+**/target
+**/node_modules
+**/dist
+**/.astro
+*.log
 .vscode
 .idea
-*.swp
-*.swo
-.DS_Store
-
-# Ignore Git metadata
-.git
-.gitignore
-
-# Ignore logs and temp files
-*.log
-tmp

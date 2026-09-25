@@ -1,44 +1,59 @@
+# Example deployment: TimeTable + Redis. Values come from `.env` (see .env.example).
+# The service speaks plain HTTP; put a reverse proxy in front of it for HTTPS.
+
 services:
   timetable:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: timetable_server
+    build: .
+    image: timetable:latest
+    container_name: timetable
     restart: unless-stopped
-    # ports:
-      # - "8080:8080"
+    ports:
+      - "${PUBLISH_PORT:-8080}:8080"
     environment:
-      # Server configuration
-      # - PORT=8080
-      # - BIND_ADDRESS=127.0.0.1
-      - RUST_LOG=info
-
-      # Redis configuration
-      - REDIS_HOST=redis
-      # - REDIS_PORT=6379
-      # - REDIS_DB=0
-      # - REDIS_USER=default
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-    networks:
-      net_timetable:
+      BASE_PATH: ${BASE_PATH:-}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}@redis:6379/0
+      CACHE_LESSONS_TTL: ${CACHE_LESSONS_TTL:-21600}
+      CACHE_OPTIONS_TTL: ${CACHE_OPTIONS_TTL:-86400}
+      AUTH_TOKEN: ${AUTH_TOKEN:-}
+      RUST_LOG: info
+      LOG_FORMAT: compact
     depends_on:
-      - redis
-  redis:
-    image: redis:latest
-    container_name: timetable_redis
-    hostname: redis
-    restart: unless-stopped
-    # ports:
-      # - "6379:6379"
-    volumes:
-      - ./cache:/data
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD} # MANDATORY
+      redis:
+        condition: service_healthy
     networks:
-      - net_timetable
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+      - default
+      - internal
+
+  redis:
+    image: redis:8-alpine
+    container_name: timetable-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - "300 1"
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal
+
+volumes:
+  redis-data:
 
 networks:
-  net_timetable:
-    external: false
+  # Redis is reachable only from the timetable container.
+  internal:
     internal: true

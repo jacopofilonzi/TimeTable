@@ -1,33 +1,38 @@
-# Stage 1: Build the Rust binary
-FROM rust:latest AS builder
+# syntax=docker/dockerfile:1
 
-# Create a new empty shell project
-WORKDIR /usr/src/myapp
+# ─── 1. Frontend → /www ────────────────────────────────────────────────────────
+FROM node:24-alpine AS frontend
+WORKDIR /src
+RUN corepack enable
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+COPY frontend/ ./
+RUN pnpm build && mv dist /www
 
-# Copy Cargo files and download dependencies
-COPY Cargo.toml Cargo.lock ./
-COPY src ./src
-COPY LICENSE ./LICENSE
-RUN cargo fetch
+# ─── 2. Backend → /app ─────────────────────────────────────────────────────────
+FROM rust:1-bookworm AS backend
+WORKDIR /src
+COPY backend/Cargo.toml backend/Cargo.lock ./
+# Build dependencies alone first so they are cached until Cargo.lock changes.
+RUN mkdir src && echo 'fn main() {}' > src/main.rs \
+    && cargo build --release --locked \
+    && rm -rf src
+COPY backend/src ./src
+RUN touch src/main.rs \
+    && cargo build --release --locked \
+    && mkdir /app && cp target/release/timetable /app/timetable
 
-# Copy the source code
-
-# Build the release binary
-RUN cargo build --release
-
-# Stage 2: Create a minimal runtime image
-FROM debian:bookworm-slim
-
-COPY src/public /www/timetable
-
-# Install any runtime dependencies if needed (e.g. SSL certs)
-RUN apt-get update && apt-get install -y \
-    libssl3 \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy the compiled binary from the builder stage
-COPY --from=builder /usr/src/myapp/target/release/timetable /usr/local/bin/timetable
-
-# Set the startup command
-CMD ["timetable"]
+# ─── 3. Runtime ────────────────────────────────────────────────────────────────
+FROM gcr.io/distroless/cc-debian12:nonroot
+COPY --from=frontend /www /www
+COPY --from=backend /app /app
+ENV HOST=0.0.0.0 \
+    PORT=8080 \
+    STATIC_DIR=/www \
+    RUST_LOG=info \
+    LOG_FORMAT=compact
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["/app/timetable", "healthcheck"]
+ENTRYPOINT ["/app/timetable"]

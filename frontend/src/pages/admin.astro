@@ -1,0 +1,10 @@
+---
+// Admin tools (cache reset). Not linked anywhere: open `/admin/` manually. The actions need the
+// server's AUTH_TOKEN; without it the backend endpoints are disabled.
+import Layout from '../layouts/Layout.astro';
+import AdminCache from '../components/AdminCache.svelte';
+---
+
+<Layout lang="it" noindex>
+  <AdminCache lang="it" client:load />
+</Layout>
