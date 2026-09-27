@@ -25,6 +25,9 @@
   const url = $derived(icsUrl(uniId, { ...values, weeks: String(weeks), name }));
   const webcal = $derived(url.replace(/^https?:/, 'webcal:'));
   const google = $derived(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}`);
+  // Google Calendar's app and mobile site ignore `cid`: after the account picker nothing gets added.
+  // On phones, explain the desktop-site workaround instead of opening the link straight away.
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const others = $derived<{ label: string; href: string; icon: IconName; download?: boolean }[]>([
     { label: t('result.webcal'), href: webcal, icon: 'link' },
     {
@@ -38,6 +41,13 @@
   let copied = $state(false);
   let qrOpen = $state(false);
   let previewOpen = $state(false);
+  let googleOpen = $state(false);
+
+  function openGoogle(e: MouseEvent) {
+    if (!isMobile) return;
+    e.preventDefault();
+    googleOpen = true;
+  }
   let urlBox: HTMLElement;
 
   async function copy() {
@@ -71,7 +81,7 @@
 
   <!-- Main calendar apps -->
   <div class="grid gap-3 sm:grid-cols-2">
-    <a class="app-button" href={google} target="_blank" rel="noopener">
+    <a class="app-button" href={google} target="_blank" rel="noopener" onclick={openGoogle}>
       <svg viewBox="0 0 32 32" class="h-10 w-10 shrink-0" aria-hidden="true">
         <rect x="3" y="3" width="26" height="26" rx="4" fill="#fff" />
         <path d="M7 3h18v4H7z" fill="#4285F4" />
@@ -133,6 +143,27 @@
 
 <Modal bind:open={qrOpen} title={t('result.qrTitle')} closeLabel={t('result.close')}>
   <QrCode {url} hint={t('result.qrHint')} errorText={t('result.qrError')} />
+</Modal>
+
+<Modal bind:open={googleOpen} title={t('result.googleMobileTitle')} closeLabel={t('result.close')}>
+  <div class="space-y-4 text-sm text-neutral-700">
+    <p>{t('result.googleMobileIntro')}</p>
+    <ol class="list-decimal space-y-2 pl-5">
+      <li>{t('result.googleMobileStep1')}</li>
+      <li>{t('result.googleMobileStep2')}</li>
+      <li>{t('result.googleMobileStep3')}</li>
+    </ol>
+    <div class="grid grid-cols-2 gap-3">
+      <button type="button" class="btn-secondary py-2.5" onclick={copy}>
+        <Icon name="link" />
+        {copied ? t('result.copied') : t('result.copy')}
+      </button>
+      <a class="btn-secondary py-2.5" href={google} target="_blank" rel="noopener">
+        <Icon name="calendar" />
+        {t('result.googleMobileOpen')}
+      </a>
+    </div>
+  </div>
 </Modal>
 
 <Modal bind:open={previewOpen} title={t('preview.title')} closeLabel={t('result.close')} wide>

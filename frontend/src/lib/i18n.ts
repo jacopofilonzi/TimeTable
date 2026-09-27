@@ -43,6 +43,15 @@ const it = {
   'result.copied': 'Copiato!',
   'result.google': 'Google Calendar',
   'result.googleHint': 'Account Google',
+  'result.googleMobileTitle': 'Google Calendar dal telefono',
+  'result.googleMobileIntro':
+    "L'app e la versione mobile di Google Calendar non permettono di aggiungere calendari tramite link: va fatto dalla versione web per computer, poi il calendario compare anche sul telefono.",
+  'result.googleMobileStep1': 'Copia il link del calendario (oppure aprilo più tardi da un computer).',
+  'result.googleMobileStep2':
+    'Apri Google Calendar nel browser, attiva "Sito desktop" dal menu del browser, poi vai su Altri calendari → + → Da URL e incolla il link.',
+  'result.googleMobileStep3':
+    "Nell'app Google Calendar su Android apri Impostazioni, tocca il nuovo calendario e attiva \"Sincronizza\".",
+  'result.googleMobileOpen': 'Apri Google Calendar',
   'result.apple': 'Apple Calendar',
   'result.appleHint': 'iPhone, iPad e Mac',
   'result.more': 'Altre app e formati',
@@ -129,6 +138,14 @@ const en: Dict = {
   'result.copied': 'Copied!',
   'result.google': 'Google Calendar',
   'result.googleHint': 'Google account',
+  'result.googleMobileTitle': 'Google Calendar on your phone',
+  'result.googleMobileIntro':
+    "Google Calendar's app and mobile site can't add calendars from a link: it has to be done from the desktop web version, then the calendar shows up on your phone too.",
+  'result.googleMobileStep1': 'Copy the calendar link (or open it later on a computer).',
+  'result.googleMobileStep2':
+    'Open Google Calendar in the browser, turn on "Desktop site" from the browser menu, then go to Other calendars → + → From URL and paste the link.',
+  'result.googleMobileStep3': 'In the Google Calendar app on Android open Settings, tap the new calendar and turn on "Sync".',
+  'result.googleMobileOpen': 'Open Google Calendar',
   'result.apple': 'Apple Calendar',
   'result.appleHint': 'iPhone, iPad and Mac',
   'result.more': 'Other apps and formats',
