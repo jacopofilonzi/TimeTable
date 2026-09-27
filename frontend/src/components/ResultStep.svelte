@@ -146,23 +146,37 @@
 </Modal>
 
 <Modal bind:open={googleOpen} title={t('result.googleMobileTitle')} closeLabel={t('result.close')}>
-  <div class="space-y-4 text-sm text-neutral-700">
+  <div class="space-y-5 text-sm text-neutral-700">
     <p>{t('result.googleMobileIntro')}</p>
-    <ol class="list-decimal space-y-2 pl-5">
-      <li>{t('result.googleMobileStep1')}</li>
-      <li>{t('result.googleMobileStep2')}</li>
-      <li>{t('result.googleMobileStep3')}</li>
-    </ol>
-    <div class="grid grid-cols-2 gap-3">
-      <button type="button" class="btn-secondary py-2.5" onclick={copy}>
+
+    <section class="space-y-3">
+      <h3 class="font-semibold text-neutral-900">{t('result.googleDesktopTitle')}</h3>
+      <ol class="list-decimal space-y-1.5 pl-5">
+        <li>{t('result.googleDesktopStep1')}</li>
+        <li>{t('result.googleDesktopStep2')}</li>
+        <li>{t('result.googleDesktopStep3')}</li>
+        <li>{t('result.googleDesktopStep4')}</li>
+      </ol>
+      <button type="button" class="btn-secondary w-full py-2.5" onclick={copy}>
         <Icon name="link" />
         {copied ? t('result.copied') : t('result.copy')}
       </button>
-      <a class="btn-secondary py-2.5" href={google} target="_blank" rel="noopener">
+    </section>
+
+    <section class="space-y-3 border-t border-neutral-100 pt-5">
+      <h3 class="font-semibold text-neutral-900">{t('result.googlePhoneTitle')}</h3>
+      <ol class="list-decimal space-y-1.5 pl-5">
+        <li>{t('result.googlePhoneStep1')}</li>
+        <li>{t('result.googlePhoneStep2')}</li>
+        <li>{t('result.googlePhoneStep3')}</li>
+      </ol>
+      <a class="btn-secondary w-full py-2.5" href={google} target="_blank" rel="noopener">
         <Icon name="calendar" />
         {t('result.googleMobileOpen')}
       </a>
-    </div>
+    </section>
+
+    <p class="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-500">{t('result.googleSyncNote')}</p>
   </div>
 </Modal>
 

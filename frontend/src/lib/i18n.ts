@@ -45,13 +45,20 @@ const it = {
   'result.googleHint': 'Account Google',
   'result.googleMobileTitle': 'Google Calendar dal telefono',
   'result.googleMobileIntro':
-    "L'app e la versione mobile di Google Calendar non permettono di aggiungere calendari tramite link: va fatto dalla versione web per computer, poi il calendario compare anche sul telefono.",
-  'result.googleMobileStep1': 'Copia il link del calendario (oppure aprilo più tardi da un computer).',
-  'result.googleMobileStep2':
-    'Apri Google Calendar nel browser, attiva "Sito desktop" dal menu del browser, poi vai su Altri calendari → + → Da URL e incolla il link.',
-  'result.googleMobileStep3':
-    "Nell'app Google Calendar su Android apri Impostazioni, tocca il nuovo calendario e attiva \"Sincronizza\".",
+    "L'app e la versione mobile di Google Calendar non permettono di aggiungere calendari tramite link. Scegli uno di questi modi: il calendario comparirà comunque anche sul telefono.",
+  'result.googleDesktopTitle': 'Da computer',
+  'result.googleDesktopStep1': 'Copia il link del calendario e mandalo al computer (es. via email o chat).',
+  'result.googleDesktopStep2': 'Apri calendar.google.com e accedi con il tuo account.',
+  'result.googleDesktopStep3': 'Nella colonna a sinistra, accanto ad "Altri calendari", premi + → Da URL.',
+  'result.googleDesktopStep4': 'Incolla il link e premi "Aggiungi calendario".',
+  'result.googlePhoneTitle': 'Dal telefono',
+  'result.googlePhoneStep1': 'Tocca "Apri Google Calendar" qui sotto.',
+  'result.googlePhoneStep2':
+    'Se si apre la versione mobile, attiva "Sito desktop" (o "Richiedi sito desktop") dal menu del browser, torna qui e tocca di nuovo il pulsante.',
+  'result.googlePhoneStep3': 'Scegli l\'account e conferma con "Aggiungi".',
   'result.googleMobileOpen': 'Apri Google Calendar',
+  'result.googleSyncNote':
+    'Su Android, se il calendario non compare nell\'app: Impostazioni → tocca il nuovo calendario → attiva "Sincronizza".',
   'result.apple': 'Apple Calendar',
   'result.appleHint': 'iPhone, iPad e Mac',
   'result.more': 'Altre app e formati',
@@ -140,12 +147,20 @@ const en: Dict = {
   'result.googleHint': 'Google account',
   'result.googleMobileTitle': 'Google Calendar on your phone',
   'result.googleMobileIntro':
-    "Google Calendar's app and mobile site can't add calendars from a link: it has to be done from the desktop web version, then the calendar shows up on your phone too.",
-  'result.googleMobileStep1': 'Copy the calendar link (or open it later on a computer).',
-  'result.googleMobileStep2':
-    'Open Google Calendar in the browser, turn on "Desktop site" from the browser menu, then go to Other calendars → + → From URL and paste the link.',
-  'result.googleMobileStep3': 'In the Google Calendar app on Android open Settings, tap the new calendar and turn on "Sync".',
+    "Google Calendar's app and mobile site can't add calendars from a link. Pick one of these ways: the calendar will show up on your phone too.",
+  'result.googleDesktopTitle': 'From a computer',
+  'result.googleDesktopStep1': 'Copy the calendar link and send it to your computer (e.g. by email or chat).',
+  'result.googleDesktopStep2': 'Open calendar.google.com and sign in.',
+  'result.googleDesktopStep3': 'In the left column, next to "Other calendars", press + → From URL.',
+  'result.googleDesktopStep4': 'Paste the link and press "Add calendar".',
+  'result.googlePhoneTitle': 'From your phone',
+  'result.googlePhoneStep1': 'Tap "Open Google Calendar" below.',
+  'result.googlePhoneStep2':
+    'If the mobile version opens, turn on "Desktop site" (or "Request desktop website") from the browser menu, come back here and tap the button again.',
+  'result.googlePhoneStep3': 'Pick your account and confirm with "Add".',
   'result.googleMobileOpen': 'Open Google Calendar',
+  'result.googleSyncNote':
+    'On Android, if the calendar doesn\'t show up in the app: Settings → tap the new calendar → turn on "Sync".',
   'result.apple': 'Apple Calendar',
   'result.appleHint': 'iPhone, iPad and Mac',
   'result.more': 'Other apps and formats',
