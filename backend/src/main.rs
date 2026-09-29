@@ -3,11 +3,13 @@ mod cache;
 mod config;
 mod errors;
 mod ics;
+mod metrics;
 mod models;
 mod shortlinks;
 mod startup;
 mod state;
 mod static_files;
+mod stats;
 mod universities;
 
 use std::sync::Arc;
@@ -31,18 +33,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_file.log();
 
     let static_files = startup::load_frontend(&config)?;
-    let short_links = match startup::open_short_links(&config) {
-        Ok(links) => links,
+    let (short_links, feed_stats) = match startup::open_short_links(&config)
+        .and_then(|links| Ok((links, startup::open_feed_stats(&config)?)))
+    {
+        Ok(dbs) => dbs,
         Err(err) => {
             tracing::error!("{err}");
             std::process::exit(1);
         }
     };
+    if config.stats_token.is_none() {
+        tracing::info!("STATS_TOKEN not set, /api/metrics and /api/stats are disabled");
+    }
+    // Registers the metrics now, so the process start time is the real one.
+    metrics::get();
     let state = Arc::new(AppState {
         cache: Cache::new(config.redis_url.as_deref()),
         registry: Registry::new(),
         http: startup::http_client()?,
         short_links,
+        feed_stats,
         config: config.clone(),
     });
 
@@ -53,9 +63,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         config.base_path
     );
 
-    axum::serve(listener, api::router(state, static_files))
+    axum::serve(listener, api::router(state.clone(), static_files))
         .with_graceful_shutdown(startup::shutdown_signal())
         .await?;
+    if let Some(stats) = &state.feed_stats {
+        stats.flush().await;
+    }
     tracing::info!("shut down");
     Ok(())
 }

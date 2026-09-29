@@ -17,9 +17,13 @@ services:
       CACHE_OPTIONS_TTL: ${CACHE_OPTIONS_TTL:-86400}
       AUTH_TOKEN: ${AUTH_TOKEN:-}
       SHORTLINK_DB: ${SHORTLINK_DB:-/data/shortlinks.db}
+      FEED_STATS_DB: ${FEED_STATS_DB:-/data/feed_stats.db}
+      FEED_STATS_RETENTION_DAYS: ${FEED_STATS_RETENTION_DAYS:-365}
+      STATS_TOKEN: ${STATS_TOKEN:-}
       RUST_LOG: info
       LOG_FORMAT: compact
     volumes:
+      # Short links and usage log (the volume keeps its original name so existing data stays).
       - shortlinks-data:/data
     depends_on:
       redis:
@@ -56,7 +60,7 @@ services:
 
 volumes:
   redis-data:
-  # Short links: unlike Redis this is not a cache, back it up.
+  # Short links and usage log: unlike Redis this is not a cache, back it up.
   shortlinks-data:
 
 networks:

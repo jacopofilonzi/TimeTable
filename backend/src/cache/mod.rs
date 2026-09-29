@@ -8,7 +8,14 @@
 mod entry;
 mod redis_layer;
 
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{
+    future::Future,
+    sync::{
+        Arc,
+        atomic::{AtomicU8, Ordering},
+    },
+    time::Duration,
+};
 
 use moka::future::Cache as MemCache;
 use serde::{Serialize, de::DeserializeOwned};
@@ -18,7 +25,10 @@ use self::{
     entry::{Entry, PerEntryTtl},
     redis_layer::RedisLayer,
 };
-use crate::errors::{AppError, Internal};
+use crate::{
+    errors::{AppError, Internal},
+    metrics::{self, CacheLabels},
+};
 
 /// Every key this app writes to Redis starts with this; [`Cache::clear`] deletes all of them.
 const KEY_NAMESPACE: &str = "timetable:";
@@ -26,6 +36,11 @@ const KEY_NAMESPACE: &str = "timetable:";
 /// failing to decode. Must start with [`KEY_NAMESPACE`].
 const KEY_PREFIX: &str = "timetable:v1:";
 const MEMORY_CAPACITY: u64 = 10_000;
+
+/// Outcomes of a lookup, for the `timetable_cache_requests_total` metric.
+const MEMORY_HIT: u8 = 0;
+const REDIS_HIT: u8 = 1;
+const MISS: u8 = 2;
 
 #[derive(Clone)]
 pub struct Cache {
@@ -48,6 +63,11 @@ impl Cache {
 
     pub fn redis_connected(&self) -> bool {
         self.redis.is_connected()
+    }
+
+    /// Entries in the in-memory layer (approximate: pending evictions may still be counted).
+    pub fn entry_count(&self) -> u64 {
+        self.memory.entry_count()
     }
 
     /// Empties the in-memory cache and deletes this app's keys from Redis (every version).
@@ -75,21 +95,39 @@ impl Cache {
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<T, AppError>>,
     {
+        let kind = key.split(':').next().unwrap_or_default().to_string();
         let key = format!("{KEY_PREFIX}{key}");
+        // Set by the loader when this call ran it; otherwise the value was already in memory (or
+        // another caller was loading it: coalesced).
+        let outcome = AtomicU8::new(MEMORY_HIT);
         let entry = self
             .memory
             .try_get_with(key.clone(), async {
                 if let Some((value, remaining)) = self.redis.get::<T>(&key).await {
                     tracing::debug!(%key, "cache hit (redis)");
+                    outcome.store(REDIS_HIT, Ordering::Relaxed);
                     return Ok(Entry::new(value, remaining.min(ttl)));
                 }
                 tracing::debug!(%key, "cache miss");
+                outcome.store(MISS, Ordering::Relaxed);
                 let value = fetch().await?;
                 self.redis.set(&key, &value, ttl).await;
                 Ok(Entry::new(value, ttl))
             })
             .await
-            .map_err(|e: Arc<AppError>| (*e).clone())?;
+            .map_err(|e: Arc<AppError>| (*e).clone());
+
+        let result = match (&entry, outcome.load(Ordering::Relaxed)) {
+            (Err(_), _) => "error",
+            (Ok(_), REDIS_HIT) => "redis_hit",
+            (Ok(_), MISS) => "miss",
+            (Ok(_), _) => "memory_hit",
+        };
+        metrics::get()
+            .cache_requests
+            .get_or_create(&CacheLabels { kind, result })
+            .inc();
+        let entry = entry?;
 
         entry
             .downcast::<T>()

@@ -22,7 +22,10 @@ use rusqlite::Connection;
 
 pub use code::normalize;
 
-use crate::errors::{AppError, Internal};
+use crate::{
+    errors::{AppError, Internal},
+    metrics::{self, DbLabels},
+};
 
 /// `last_used_at` is updated at most once per link in this interval.
 const TOUCH_INTERVAL: Duration = Duration::from_secs(24 * 3600);
@@ -80,6 +83,11 @@ impl ShortLinks {
         self.run(move |conn| store::lookup(conn, &code)).await
     }
 
+    /// Number of stored links.
+    pub async fn count(&self) -> Result<i64, AppError> {
+        self.run(|conn| store::count(conn)).await
+    }
+
     /// Records a visit, at most once per [`TOUCH_INTERVAL`]; runs in the background and only
     /// logs failures.
     pub async fn touch(&self, code: &str) {
@@ -112,7 +120,13 @@ impl ShortLinks {
         })
         .await
         .map_err(|e| Internal::new(format!("short link task failed: {e}")))?
-        .map_err(|e| Internal::new(format!("short link database: {e}")).into())
+        .map_err(|e| {
+            metrics::get()
+                .sqlite_errors
+                .get_or_create(&DbLabels { db: "shortlinks" })
+                .inc();
+            Internal::new(format!("short link database: {e}")).into()
+        })
     }
 }
 

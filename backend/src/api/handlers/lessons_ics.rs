@@ -2,24 +2,42 @@ use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::{Path, Query, State},
-    http::header,
+    http::{HeaderMap, header},
     response::{IntoResponse, Response},
 };
 use chrono::Utc;
 
-use crate::{api::SharedState, errors::AppError, ics, state::AppState, universities::University};
+use super::status_of;
+use crate::{
+    api::SharedState,
+    errors::AppError,
+    ics,
+    state::{AppState, Endpoint, TrackedRequest},
+    universities::University,
+};
 
 /// Longest accepted calendar name (`name` query parameter), in characters.
 const MAX_NAME_CHARS: usize = 100;
 
-/// `GET /api/universities/{id}/lessons.ics?<params>&weeks=N&name=…` → iCalendar feed.
+/// `GET /api/universities/{id}/lessons.ics?<params>&weeks=N&name=…&k=…` → iCalendar feed.
 pub async fn get_lessons_ics(
     State(state): State<SharedState>,
     Path(id): Path<String>,
     Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    let uni = state.registry.get(&id)?;
-    ics_response(&state, uni, &query).await
+    let result = match state.registry.get(&id) {
+        Ok(uni) => ics_response(&state, uni, &query).await,
+        Err(err) => Err(err),
+    };
+    state.track(TrackedRequest {
+        endpoint: Endpoint::LessonsIcs,
+        university: Some(&id),
+        query: &query,
+        headers: &headers,
+        status: status_of(&result),
+    });
+    result
 }
 
 /// The feed for `query` (schema fields, `weeks`, optional `name`); shared with short links.

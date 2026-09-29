@@ -8,6 +8,7 @@ use super::{
 };
 use crate::{
     errors::{AppError, BadRequest},
+    metrics::{self, UniversityLabels, observe_upstream},
     models::{Field, FieldKind, Lesson, WeeksRange},
     universities::{DateRange, Params, University},
 };
@@ -35,8 +36,17 @@ impl AppState {
         );
         let lessons = self
             .cache
-            .get_or_fetch(&key, self.config.lessons_ttl, || {
-                uni.lessons(&self.http, &params, &range)
+            .get_or_fetch(&key, self.config.lessons_ttl, || async {
+                let lessons =
+                    observe_upstream(info.id, "lessons", uni.lessons(&self.http, &params, &range))
+                        .await?;
+                metrics::get()
+                    .upstream_last_lessons
+                    .get_or_create(&UniversityLabels {
+                        university: info.id.to_string(),
+                    })
+                    .set(i64::try_from(lessons.len()).unwrap_or(i64::MAX));
+                Ok(lessons)
             })
             .await?;
         Ok(LessonsResult { lessons, range })

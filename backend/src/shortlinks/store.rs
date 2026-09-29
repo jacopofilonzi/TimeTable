@@ -72,6 +72,11 @@ pub fn lookup(conn: &Connection, id: &str) -> rusqlite::Result<Option<String>> {
     .optional()
 }
 
+/// Number of stored links.
+pub fn count(conn: &Connection) -> rusqlite::Result<i64> {
+    conn.query_row("SELECT COUNT(*) FROM short_links", [], |row| row.get(0))
+}
+
 pub fn touch(conn: &Connection, id: &str, now: i64) -> rusqlite::Result<()> {
     conn.execute(
         "UPDATE short_links SET last_used_at = ?2 WHERE id = ?1",

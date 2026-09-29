@@ -10,6 +10,8 @@ use std::{
 use redis::{FromRedisValue, aio::ConnectionManager};
 use serde::{Serialize, de::DeserializeOwned};
 
+use crate::metrics::{self, RedisErrorLabels};
+
 const TIMEOUT: Duration = Duration::from_millis(500);
 /// Per-command timeout for admin operations (they may touch many keys).
 const ADMIN_TIMEOUT: Duration = Duration::from_secs(5);
@@ -69,10 +71,12 @@ impl RedisLayer {
             Ok(Ok((None, _))) => return None,
             Ok(Err(err)) => {
                 tracing::warn!(%err, "redis GET failed");
+                count_error("get", "error");
                 return None;
             }
             Err(_) => {
                 tracing::warn!("redis GET timed out");
+                count_error("get", "timeout");
                 return None;
             }
         };
@@ -106,8 +110,14 @@ impl RedisLayer {
         let query = cmd.query_async::<()>(&mut conn);
         match tokio::time::timeout(TIMEOUT, query).await {
             Ok(Ok(())) => {}
-            Ok(Err(err)) => tracing::warn!(%err, "redis SET failed"),
-            Err(_) => tracing::warn!("redis SET timed out"),
+            Ok(Err(err)) => {
+                tracing::warn!(%err, "redis SET failed");
+                count_error("set", "error");
+            }
+            Err(_) => {
+                tracing::warn!("redis SET timed out");
+                count_error("set", "timeout");
+            }
         }
     }
 
@@ -184,6 +194,13 @@ fn spawn_connector(url: String, slot: Arc<OnceLock<ConnectionManager>>) {
             tokio::time::sleep(RETRY).await;
         }
     });
+}
+
+fn count_error(op: &'static str, reason: &'static str) {
+    metrics::get()
+        .redis_errors
+        .get_or_create(&RedisErrorLabels { op, reason })
+        .inc();
 }
 
 /// Runs an admin command with [`ADMIN_TIMEOUT`], turning failures into a message.

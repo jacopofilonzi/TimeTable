@@ -10,6 +10,7 @@ use axum::{
     Router,
     extract::{Path, Query, State},
     http::{HeaderMap, Method, Uri},
+    middleware,
     response::IntoResponse,
     routing::{delete, get, post},
 };
@@ -17,6 +18,7 @@ use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 
 use crate::{
     errors::{AppError, NotFound},
+    metrics,
     state::AppState,
     static_files::StaticFiles,
 };
@@ -39,6 +41,9 @@ pub fn router(state: SharedState, static_files: StaticFiles) -> Router {
         )
         .route("/short", post(handlers::create_short_link))
         .route("/admin/cache", delete(handlers::clear_cache))
+        .route("/metrics", get(handlers::metrics))
+        .route("/stats/requests", get(handlers::stats_requests))
+        .route("/stats/feed-subscribers", get(handlers::stats_subscribers))
         .fallback(|| async { AppError::from(NotFound::new("Unknown API endpoint")) });
 
     // Short links, also as `/S/...`: QR codes carry them in uppercase (alphanumeric mode).
@@ -51,8 +56,9 @@ pub fn router(state: SharedState, static_files: StaticFiles) -> Router {
               uri: Uri,
               headers: HeaderMap| {
             let static_files = static_files.clone();
+            let via_qr = uri.path().starts_with("/S/");
             async move {
-                match handlers::open_short_link(&state, &code, &query, &headers).await {
+                match handlers::open_short_link(&state, &code, &query, &headers, via_qr).await {
                     Ok(res) => res,
                     // Unknown code or short links disabled: the site's 404 page, not JSON.
                     Err(AppError::NotFound(_)) => static_files.respond(&method, &uri, &headers),
@@ -69,7 +75,9 @@ pub fn router(state: SharedState, static_files: StaticFiles) -> Router {
         .fallback(move |method: Method, uri: Uri, headers: HeaderMap| {
             let static_files = static_files.clone();
             async move { static_files.respond(&method, &uri, &headers) }
-        });
+        })
+        // Inside the base path mount, so routes are labelled without the prefix.
+        .layer(middleware::from_fn(metrics::track_http));
 
     let base = state.config.base_path.clone();
     let app = app.with_state(state);

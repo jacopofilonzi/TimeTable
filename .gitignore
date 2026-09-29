@@ -1,6 +1,6 @@
 .env
 backend/target/
-# Short link database (SHORTLINK_DB default), from `backend/` or the repo root.
+# Short link and usage log databases (SHORTLINK_DB / FEED_STATS_DB defaults), from `backend/` or the repo root.
 backend/data/
 /data/
 frontend/node_modules/

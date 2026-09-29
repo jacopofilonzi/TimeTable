@@ -47,6 +47,19 @@ pub enum AppError {
     Internal(#[from] Internal),
 }
 
+impl AppError {
+    /// The HTTP status this error is answered with.
+    pub fn status(&self) -> StatusCode {
+        match self {
+            Self::NotFound(_) => NotFound::STATUS,
+            Self::BadRequest(_) => BadRequest::STATUS,
+            Self::Unauthorized(_) => Unauthorized::STATUS,
+            Self::Upstream(_) => Upstream::STATUS,
+            Self::Internal(_) => Internal::STATUS,
+        }
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         match &self {

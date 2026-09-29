@@ -27,6 +27,16 @@ For what lives where and how the pieces fit together, read [STRUCTURE.md](STRUCT
 - **Admin endpoints** (`/api/admin/...`) take the `AdminAuth` extractor (`api/auth.rs`) and stay
   disabled (404) without `AUTH_TOKEN`. Never log or return the token: keep it in `config::Secret` and
   compare it only through `AdminAuth`.
+- **Stats endpoints** (`/api/metrics`, `/api/stats/...`) are read-only and take `StatsAuth` (`STATS_TOKEN`,
+  404 when unset), never `AdminAuth`: Prometheus/Grafana hold that token, so it must not allow admin
+  actions. Same rules for the token: `config::Secret`, never logged.
+- **Tracking:** only `.ics` feeds (`feed`) and public JSON calls from outside the wizard (`api`) are tracked
+  (`state/tracking.rs`); the wizard marks its calls with `X-TT-Client: web` (`lib/api.ts`) and those are
+  never tracked. The track id `k` stays optional (invalid = anonymous, never an error) and never enters
+  cache keys or upstream requests. Tracking must never fail or slow down a request: log rows go through
+  the non-blocking queue in `stats/`.
+- **Metric labels are bounded:** route templates, university ids, schema params, client families. Never
+  put track ids, user agents, names or raw paths in labels (they belong in the usage log).
 - **Redis must never fail a request.** Any Redis error or timeout degrades to a cache miss; the server must
   start without Redis.
 - **Bump the cache key version** (`KEY_PREFIX` in `cache/mod.rs`, `timetable:v1:`) whenever a cached payload shape
@@ -39,10 +49,10 @@ For what lives where and how the pieces fit together, read [STRUCTURE.md](STRUCT
   keys or upstream requests.
 - **Lesson IDs must be stable** across fetches (they become ICS `UID`s): derive them from the source's IDs,
   prefixed with the university id.
-- **Reserved names:** `uni`, `step`, `weeks`, `name` can't be field keys and `university`, `options`, `result`
+- **Reserved names:** `uni`, `step`, `weeks`, `name`, `k` can't be field keys and `university`, `options`, `result`
   can't be step ids: they share the wizard URL query (a test in `state/validation.rs` checks every university).
-- **Short links are durable data, not cache:** the SQLite database must not be treated like Redis (the server exits
-  if it can't write it). Keep the canonical page query format (`state/short_links.rs`) and the code derivation
+- **Short links and the usage log are durable data, not cache:** their SQLite databases (`SHORTLINK_DB`,
+  `FEED_STATS_DB`, separate files) must not be treated like Redis (the server exits if it can't write them). Keep the canonical page query format (`state/short_links.rs`) and the code derivation
   (`shortlinks/code.rs`) stable, and keep the frontend able to read old page queries: existing links point at them.
 - **The wizard state lives in the URL** (`lib/wizard-url.ts`), never in browser storage.
 - Astro stays **static only**: no SSR, no adapter, no Node server at runtime.
@@ -87,8 +97,8 @@ Validation, caching, API and wizard follow the schema: nothing else should need 
 - **TypeScript is pinned to 6.x**: `astro check` doesn't support TypeScript 7 yet. Don't upgrade it.
 - Static files are loaded by the backend once at startup: **restart the backend after rebuilding the frontend**
   when testing through `:8080`.
-- The backend creates `data/shortlinks.db` in its working dir (`backend/data/` with `make dev`, git-ignored);
-  set `SHORTLINK_DB=false` in `.env` to run without it.
+- The backend creates `data/shortlinks.db` and `data/feed_stats.db` in its working dir (`backend/data/` with
+  `make dev`, git-ignored); set `SHORTLINK_DB=false` / `FEED_STATS_DB=false` in `.env` to run without them.
 
 ## Testing
 

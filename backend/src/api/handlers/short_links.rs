@@ -8,11 +8,13 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::lessons_ics::ics_response;
+use super::{lessons_ics::ics_response, status_of};
 use crate::{
     api::SharedState,
     errors::{AppError, Internal},
-    state::AppState,
+    metrics::{self, ShortLinkOpenLabels},
+    shortlinks::normalize,
+    state::{AppState, Endpoint, TrackedRequest},
 };
 
 #[derive(Deserialize)]
@@ -39,16 +41,19 @@ pub async fn create_short_link(
         query.insert("weeks".into(), weeks.to_string());
     }
     let code = state.create_short_link(uni, &query).await?;
+    metrics::get().short_links_created.inc();
     Ok(Json(CreatedShortLink { code }))
 }
 
 /// `GET /s/{code}` → redirect to the wizard result for the link's settings, in the visitor's
-/// language. `GET /s/{code}.ics?name=…` → the iCalendar feed directly.
+/// language. `GET /s/{code}.ics?name=…&k=…` → the iCalendar feed directly. `via_qr`: opened as
+/// `/S/…` (the uppercase form in the QR codes).
 pub async fn open_short_link(
     state: &AppState,
     code: &str,
     query: &HashMap<String, String>,
     headers: &HeaderMap,
+    via_qr: bool,
 ) -> Result<Response, AppError> {
     let suffix = code.len().checked_sub(4).filter(|&i| {
         code.get(i..)
@@ -59,25 +64,41 @@ pub async fn open_short_link(
         None => (code, false),
     };
     let page = state.resolve_short_link(code).await?;
+    let via = if via_qr { "qr" } else { "link" };
 
     if ics {
+        count_open("ics", via, "none");
         let mut params: HashMap<String, String> = form_urlencoded::parse(page.as_bytes())
             .into_owned()
             .collect();
         let uni_id = params
             .remove("uni")
             .ok_or_else(|| Internal::new(format!("short link {code} has no university")))?;
-        let uni = state.registry.get(&uni_id)?;
-        if let Some(name) = query.get("name") {
-            params.insert("name".into(), name.clone());
+        for key in ["name", "k"] {
+            if let Some(value) = query.get(key) {
+                params.insert(key.into(), value.clone());
+            }
         }
-        return ics_response(state, uni, &params).await;
+        let result = match state.registry.get(&uni_id) {
+            Ok(uni) => ics_response(state, uni, &params).await,
+            Err(err) => Err(err),
+        };
+        let code = normalize(code).unwrap_or_default();
+        state.track(TrackedRequest {
+            endpoint: Endpoint::ShortIcs(&code),
+            university: Some(&uni_id),
+            query: &params,
+            headers,
+            status: status_of(&result),
+        });
+        return result;
     }
 
     let english = headers
         .get(header::ACCEPT_LANGUAGE)
         .and_then(|v| v.to_str().ok())
         .is_some_and(prefers_english);
+    count_open("page", via, if english { "en" } else { "it" });
     let lang = if english { "en/" } else { "" };
     let location = format!("{}/{lang}?{page}&step=result", state.config.base_path);
     Ok((
@@ -88,6 +109,13 @@ pub async fn open_short_link(
         Redirect::temporary(&location),
     )
         .into_response())
+}
+
+fn count_open(target: &'static str, via: &'static str, lang: &'static str) {
+    metrics::get()
+        .short_link_opens
+        .get_or_create(&ShortLinkOpenLabels { target, via, lang })
+        .inc();
 }
 
 /// Whether `Accept-Language` ranks English above Italian (the site default).

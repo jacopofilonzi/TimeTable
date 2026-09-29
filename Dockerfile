@@ -28,12 +28,13 @@ RUN touch src/main.rs \
 FROM gcr.io/distroless/cc-debian12:nonroot
 COPY --from=frontend /www /www
 COPY --from=backend /app /app
-# Short link database directory, writable by the nonroot user (a named volume inherits this).
+# Short link and usage log database directory, writable by the nonroot user (a named volume inherits this).
 COPY --from=backend --chown=65532:65532 /data /data
 ENV HOST=0.0.0.0 \
     PORT=8080 \
     STATIC_DIR=/www \
     SHORTLINK_DB=/data/shortlinks.db \
+    FEED_STATS_DB=/data/feed_stats.db \
     RUST_LOG=info \
     LOG_FORMAT=compact
 VOLUME /data

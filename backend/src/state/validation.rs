@@ -10,7 +10,7 @@ use crate::{
     universities::Params,
 };
 
-const MAX_VALUE_LEN: usize = 100;
+pub const MAX_VALUE_LEN: usize = 100;
 
 pub fn all_fields(info: &UniversityInfo) -> impl Iterator<Item = &Field> {
     info.steps.iter().flat_map(|s| s.fields.iter())
@@ -63,8 +63,9 @@ pub fn canonical(params: &Params) -> String {
 mod tests {
     use crate::universities::Registry;
 
-    /// Query parameters of the wizard page and of the lessons endpoints next to the fields.
-    const RESERVED_KEYS: [&str; 4] = ["uni", "step", "weeks", "name"];
+    /// Query parameters of the wizard page and of the lessons endpoints next to the fields (`k`
+    /// is the track id of the feeds).
+    const RESERVED_KEYS: [&str; 5] = ["uni", "step", "weeks", "name", "k"];
     /// `step=` values the frontend uses for its own steps.
     const RESERVED_STEP_IDS: [&str; 3] = ["university", "options", "result"];
 

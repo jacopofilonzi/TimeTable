@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{
     errors::AppError,
+    metrics::observe_upstream,
     models::{Field, FieldKind, SelectOption},
     universities::{Params, University},
 };
@@ -49,7 +50,11 @@ impl AppState {
         );
         self.cache
             .get_or_fetch(&key, self.config.options_ttl, || {
-                uni.options(&self.http, field.key, deps)
+                observe_upstream(
+                    uni.info().id,
+                    "options",
+                    uni.options(&self.http, field.key, deps),
+                )
             })
             .await
     }

@@ -10,6 +10,7 @@ repo/
 ├── frontend/           Astro 7 (static output only) + Svelte 5 (runes) + Tailwind 4, pnpm
 ├── Dockerfile          stage 1 frontend → /www, stage 2 backend → /app, stage 3 distroless runtime
 ├── docker-compose.yml  example deployment: service + Redis (internal network)
+├── grafana/            importable dashboard (Prometheus + Infinity JSON) and setup notes
 ├── .env.example        every supported env var, documented; `.env` is git-ignored
 └── Makefile            dev commands (run `make help`)
 ```
@@ -27,19 +28,20 @@ backend/src/
 │   ├── http_client.rs        shared reqwest client (user agent, timeouts)
 │   ├── frontend.rs           loads the built frontend, or API-only mode
 │   ├── short_links.rs        opens the short link database (exits if it can't be written)
+│   ├── feed_stats.rs         opens the usage log database (exits if it can't be written)
 │   ├── healthcheck.rs        `timetable healthcheck` (Docker HEALTHCHECK, the image has no curl)
 │   └── shutdown.rs           Ctrl+C / SIGTERM for graceful shutdown
 ├── config/                   `Config::from_env`, read once; empty env values count as unset
 │   ├── env.rs                env var helpers
 │   ├── base_path.rs          BASE_PATH normalization
 │   ├── static_dir.rs         STATIC_DIR, or /www, then ../frontend/dist
-│   ├── shortlink_db.rs       SHORTLINK_DB: path, `false`, or data/shortlinks.db
+│   ├── db_path.rs            SHORTLINK_DB / FEED_STATS_DB: path, `false`, or data/<name>.db
 │   ├── log_format.rs         LogFormat
-│   └── secret.rs             `Secret` (AUTH_TOKEN), redacted in `Debug`
+│   └── secret.rs             `Secret` (AUTH_TOKEN, STATS_TOKEN), redacted in `Debug`
 ├── errors/                   `AppError` + `ApiError` trait → JSON `{error, message}`
 │   ├── not_found.rs          404
 │   ├── bad_request.rs        400
-│   ├── unauthorized.rs       401 (admin endpoints)
+│   ├── unauthorized.rs       401 (admin and stats endpoints)
 │   ├── upstream.rs           502, university site failed (details logged, not exposed)
 │   └── internal.rs           500 (details logged, not exposed)
 ├── models/                   API data: `Lesson` + wizard schema
@@ -49,14 +51,18 @@ backend/src/
 │   ├── step.rs
 │   ├── field.rs              `Field`, `FieldKind`
 │   └── select_option.rs
-├── api/                      router (`/api/...` + static fallback), compression, tracing
-│   ├── auth.rs               `AdminAuth` extractor: Bearer AUTH_TOKEN (404 when unset)
+├── api/                      router (`/api/...` + static fallback), compression, tracing, HTTP metrics
+│   ├── auth.rs               `AdminAuth` (Bearer AUTH_TOKEN) and `StatsAuth` (Bearer STATS_TOKEN)
+│   │                         extractors, 404 when their token is unset
 │   ├── base_path.rs          mounts everything under BASE_PATH
-│   └── handlers/             health, universities, options, lessons, lessons_ics, short_links, admin
+│   └── handlers/             health, universities, options, lessons, lessons_ics, short_links, admin,
+│                             stats (metrics + usage log JSON); tracked handlers call `state.track`
 ├── state/                    `AppState`: validation + caching around crawlers
 │   ├── options.rs            `AppState::options`
 │   ├── lessons.rs            `AppState::lessons` (+ query validation, `weeks` parsing)
 │   ├── short_links.rs        create/resolve short links (validation, page query, cached lookups)
+│   ├── tracking.rs           what is tracked (feed / api / own frontend) → usage log row + counter
+│   ├── metrics.rs            `refresh_metrics`: state gauges refreshed before each scrape
 │   └── validation.rs         schema-driven checks, canonical cache-key params, reserved names test
 ├── cache/                    `Cache::get_or_fetch`
 │   ├── entry.rs              in-memory entries with per-entry TTL (moka)
@@ -64,6 +70,17 @@ backend/src/
 ├── shortlinks/               `ShortLinks`: SQLite store of short links (design in `mod.rs` doc comment)
 │   ├── code.rs               codes: Crockford base32 of SHA-256, normalization
 │   └── store.rs              SQL: table, insert-or-get with collision handling, lookup, touch
+├── stats/                    `FeedStats`: SQLite usage log (design in `mod.rs` doc comment)
+│   ├── event.rs              `RequestEvent`, `Kind` (feed/api), track id validation
+│   ├── client.rs             client family from the User-Agent (google, apple, curl, …)
+│   ├── store.rs              SQL: tables, batch insert, purge, JSON queries, metric summary
+│   └── writer.rs             background writer thread fed by a bounded queue
+├── metrics/                  Prometheus registry (process-wide `metrics::get()`), OpenMetrics text
+│   ├── families.rs           every metric family and its registration
+│   ├── labels.rs             label sets (bounded values only)
+│   ├── http.rs               middleware: requests and latency by route template
+│   ├── upstream.rs           `observe_upstream`: crawler call duration and outcome
+│   └── process.rs            CPU and memory from /proc (Linux only)
 ├── ics/                      `ics::render`, RFC 5545 calendar
 │   └── format.rs             timestamps, escaping, 75-octet line folding
 ├── static_files/             built frontend served from memory
@@ -93,11 +110,19 @@ All under `{BASE_PATH}/api`:
 - `GET /universities/{id}/lessons?<params>&weeks=N` → `{timezone, from, to, lessons}`
 - `GET /universities/{id}/lessons.ics?<params>&weeks=N&name=…` → iCalendar feed
 - `POST /short` `{uni, params, weeks}` → `{code}`: validated like `lessons`; 404 when short links are disabled
+- `GET /metrics` (header `Authorization: Bearer <STATS_TOKEN>`) → Prometheus metrics, OpenMetrics text
+- `GET /stats/requests?kind=feed|api|all&from=&to=&track_id=&anonymous=true|false|any&limit=` (Bearer
+  `STATS_TOKEN`) → usage log rows, newest first, `track_id: null` when anonymous; `from`/`to` accept unix
+  seconds, milliseconds or RFC 3339; `limit` defaults to 500 (max 10 000)
+- `GET /stats/feed-subscribers?active_days=&limit=` (Bearer `STATS_TOKEN`) → track ids, last seen first
+
+Without `STATS_TOKEN` the three stats endpoints answer 404 (like admin without `AUTH_TOKEN`); a wrong token
+answers 401 after 500 ms. `/stats/*` also answer 404 when the usage log is disabled.
 
 Outside `/api` (still under `BASE_PATH`), also as `/S/…` for uppercase QR codes:
 
 - `GET /s/{code}` → 307 to `/?<page query>&step=result` (`/en/…` when `Accept-Language` prefers English)
-- `GET /s/{code}.ics?name=…` → the iCalendar feed of the link (not exposed in the UI yet)
+- `GET /s/{code}.ics?name=…&k=…` → the iCalendar feed of the link (not exposed in the UI yet)
 
 Unknown codes (or short links disabled) get the site's 404 page.
 
@@ -145,6 +170,43 @@ cache: when enabled, the server creates the file and its directory and exits if 
   time. Lookups are case-insensitive and read `O` as `0`, `I`/`L` as `1`.
 - `last_used_at` is updated in the background at most once a day per link.
 
+### Usage tracking
+
+Feed URLs built by the wizard carry `k=<8 × [A-Za-z0-9]>`, a random track id generated once per page load
+(`lib/api.ts`, in memory only). Calendar apps poll the feed, so "track id seen in the last N days" counts
+active subscriptions; IPs would be useless (Google and Apple fetch from their own servers). `k` is optional
+and never validated as a schema field: missing or malformed means anonymous, never an error, so old URLs
+keep working. It never enters cache keys.
+
+What `state/tracking.rs` records:
+
+| kind | requests | track id |
+| --- | --- | --- |
+| `feed` (user usage) | `lessons.ics`, `/s/{code}.ics` | `k` or `NULL` |
+| `api` (API usage) | `/universities`, `/universities/{id}`, `/options/{field}`, `/lessons` without `X-TT-Client: web` | `k` or (almost always) `NULL` |
+| not tracked | JSON with `X-TT-Client: web` (the wizard), admin, stats, metrics, short link creation, static files | — |
+
+Each tracked request increments `timetable_tracked_requests_total{kind,tracked,client}` and, when
+`FEED_STATS_DB` is enabled, becomes a row of `requests` in the usage log (`stats/`): time, kind, endpoint
+(`lessons.ics`, `short.ics`, `universities`, `university`, `options:<field>`, `lessons`), track id, short
+code, university, declared schema params (canonical, length-capped), weeks, custom name, client family,
+User-Agent, HTTP status. Successful feeds with a track id also upsert `feed_subscribers` (first/last seen,
+count, last client and params), kept forever; `requests` rows older than `FEED_STATS_RETENTION_DAYS` (365,
+`0` = forever) are purged daily. Rows go through a bounded queue to a writer thread, so handlers never
+wait on SQLite; the queue is flushed on graceful shutdown. The database is in WAL mode, so it can be read
+live (`sqlite3`, DB Browser) while the server runs.
+
+### Metrics
+
+`GET /api/metrics` exposes one process-wide registry (`metrics/`). Counters/histograms are updated where
+things happen: HTTP requests by route template (`metrics::track_http`, `static` / `unmatched` for the
+fallbacks), cache lookups by kind and result, Redis errors, upstream fetches (`observe_upstream`), short
+link creations and opens (`via=qr` for `/S/`), SQLite errors, dropped log rows, auth failures, tracked
+requests. Gauges describing state (cache entries, Redis status, SQLite file sizes, short link count, and
+the subscriber aggregates computed from the usage log, cached 30 s) are refreshed by
+`AppState::refresh_metrics` before each scrape. Labels only carry bounded values: never track ids, user
+agents or raw paths. `grafana/` has a ready dashboard and the Prometheus/Grafana setup.
+
 ### Base path
 
 `BASE_PATH` is applied at runtime, so one build/image works under any prefix:
@@ -176,7 +238,7 @@ cache: when enabled, the server creates the file and its directory and exits if 
 | `components/Modal.svelte` | generic `<dialog>` wrapper; content is mounted only while open (lazy loading) |
 | `components/QrCode.svelte` | QR code of a URL; `qrcode` is dynamically imported (separate chunk) |
 | `components/Icon.svelte` | inline stroke icons (Lucide paths) |
-| `lib/api.ts` | API types (mirror `backend/src/models/`), fetch helpers, `BASE`, `icsUrl()`, `createShortLink()`, `shortUrl()` / `shortUrlForQr()` |
+| `lib/api.ts` | API types (mirror `backend/src/models/`), fetch helpers (all send `X-TT-Client: web`), `BASE`, `icsUrl()` (adds the track id `k`), `createShortLink()`, `shortUrl()` / `shortUrlForQr()` |
 | `lib/i18n.ts` | IT/EN dictionaries (`en` is typed against `it`: a missing key is a type error) |
 | `styles/global.css` | Tailwind theme tokens and `@utility` classes (`btn-*`, `input`, `code-block`) |
 

@@ -1,0 +1,568 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "Prometheus scraping TimeTable's /api/metrics",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    },
+    {
+      "name": "DS_INFINITY",
+      "label": "Infinity (TimeTable stats)",
+      "description": "Infinity datasource with TimeTable's base URL and the STATS_TOKEN bearer header",
+      "type": "datasource",
+      "pluginId": "yesoreyeram-infinity-datasource",
+      "pluginName": "Infinity"
+    }
+  ],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.4.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "datasource", "id": "yesoreyeram-infinity-datasource", "name": "Infinity", "version": "2.0.0" },
+    { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "bargauge", "name": "Bar gauge", "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" }
+  ],
+  "title": "TimeTable",
+  "uid": "timetable-usage",
+  "description": "Usage (feeds, subscribers, API), upstream, server and short links of TimeTable",
+  "tags": ["timetable"],
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "annotations": { "list": [] },
+  "links": [],
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "Job",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "definition": "label_values(timetable_build_info, job)",
+        "query": { "query": "label_values(timetable_build_info, job)", "refId": "job" },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": false,
+        "allValue": ".*",
+        "current": {},
+        "sort": 1
+      },
+      {
+        "name": "kind",
+        "label": "Log: kind",
+        "type": "custom",
+        "query": "all,feed,api",
+        "current": { "text": "all", "value": "all" },
+        "options": [
+          { "text": "all", "value": "all", "selected": true },
+          { "text": "feed", "value": "feed", "selected": false },
+          { "text": "api", "value": "api", "selected": false }
+        ]
+      },
+      {
+        "name": "anonymous",
+        "label": "Log: anonymous",
+        "type": "custom",
+        "query": "any,true,false",
+        "current": { "text": "any", "value": "any" },
+        "options": [
+          { "text": "any", "value": "any", "selected": true },
+          { "text": "true", "value": "true", "selected": false },
+          { "text": "false", "value": "false", "selected": false }
+        ]
+      },
+      {
+        "name": "track_id",
+        "label": "Log: track id",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    { "id": 100, "type": "row", "title": "Usage", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "panels": [] },
+    {
+      "id": 1,
+      "type": "piechart",
+      "title": "Feed requests: tracked vs anonymous",
+      "description": "Every .ics fetch in the selected range: with a track id (k) or without (old URLs, hand-made URLs).",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "options": {
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum(increase(timetable_tracked_requests_total{job=~\"$job\", kind=\"feed\", tracked=\"true\"}[$__range]))", "legendFormat": "Tracked", "instant": true, "range": false },
+        { "refId": "B", "expr": "sum(increase(timetable_tracked_requests_total{job=~\"$job\", kind=\"feed\", tracked=\"false\"}[$__range]))", "legendFormat": "Anonymous", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "piechart",
+      "title": "Requests: feed (users) vs api",
+      "description": "Tracked requests in the selected range: .ics feeds vs JSON calls from outside the wizard.",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "options": {
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (kind) (increase(timetable_tracked_requests_total{job=~\"$job\"}[$__range]))", "legendFormat": "{{kind}}", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "piechart",
+      "title": "Feed requests by calendar app",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "options": {
+        "pieType": "pie",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (client) (increase(timetable_tracked_requests_total{job=~\"$job\", kind=\"feed\"}[$__range]))", "legendFormat": "{{client}}", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Active subscribers",
+      "description": "Track ids that fetched their feed within the window.",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 9 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name", "colorMode": "none", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (window) (timetable_feed_subscribers_active{job=~\"$job\"})", "legendFormat": "{{window}}", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "All-time subscribers",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 9 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value", "colorMode": "none", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum(timetable_feed_subscribers{job=~\"$job\"})", "legendFormat": "subscribers" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Anonymous feeds (lower bound)",
+      "description": "Distinct settings + custom name + app among feeds without a track id. Two people with the same course, default name and app count once, so the real number is higher.",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 9 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name", "colorMode": "none", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (window) (timetable_feed_anonymous_estimate{job=~\"$job\"})", "legendFormat": "≥ {{window}}", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "New subscribers (last 24 h)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 9 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value", "colorMode": "none", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum(delta(timetable_feed_subscribers{job=~\"$job\"}[24h]))", "legendFormat": "new", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Active subscribers over time",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (window) (timetable_feed_subscribers_active{job=~\"$job\"})", "legendFormat": "active {{window}}" },
+        { "refId": "B", "expr": "sum(timetable_feed_subscribers{job=~\"$job\"})", "legendFormat": "all-time" }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Feed requests per hour",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (tracked) (rate(timetable_tracked_requests_total{job=~\"$job\", kind=\"feed\"}[$__rate_interval])) * 3600", "legendFormat": "tracked={{tracked}}" }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "bargauge",
+      "title": "Active subscribers (7 d) by feed settings",
+      "description": "Schema params of each subscriber's last fetch (e.g. course and year).",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 22 },
+      "options": { "orientation": "horizontal", "displayMode": "basic", "showUnfilled": true, "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "min": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sort_desc(sum by (university, params) (timetable_feed_subscribers_by_params{job=~\"$job\"}))", "legendFormat": "{{university}} {{params}}", "instant": true, "range": false }
+      ]
+    },
+
+    { "id": 101, "type": "row", "title": "API usage (JSON from outside the wizard)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 }, "panels": [] },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "API requests per hour by client",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (client) (rate(timetable_tracked_requests_total{job=~\"$job\", kind=\"api\"}[$__rate_interval])) * 3600", "legendFormat": "{{client}}" }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Tracked requests per hour: feed vs api",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (kind) (rate(timetable_tracked_requests_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "{{kind}}" }
+      ]
+    },
+
+    { "id": 102, "type": "row", "title": "Upstream (university sites)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 }, "panels": [] },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Upstream fetches per hour",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 41 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*error.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (university, operation, result) (rate(timetable_upstream_requests_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "{{university}} {{operation}} {{result}}" }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Upstream fetch duration (p95)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 41 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, university, operation) (rate(timetable_upstream_duration_seconds_bucket{job=~\"$job\"}[$__rate_interval])))", "legendFormat": "{{university}} {{operation}}" }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "Lessons in the last fetch",
+      "description": "0 for a whole week usually means the university site changed format (or holidays).",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 41 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "refId": "A", "expr": "max by (university) (timetable_upstream_last_lessons{job=~\"$job\"})", "legendFormat": "{{university}}" }
+      ]
+    },
+
+    { "id": 103, "type": "row", "title": "Server", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 49 }, "panels": [] },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "HTTP requests per hour by route",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (route) (rate(timetable_http_requests_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "{{route}}" }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "HTTP latency (p95) by route",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 50 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, route) (rate(timetable_http_request_duration_seconds_bucket{job=~\"$job\"}[$__rate_interval])))", "legendFormat": "{{route}}" }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "HTTP errors per hour",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 58 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (route, status) (rate(timetable_http_requests_total{job=~\"$job\", status=~\"5..\"}[$__rate_interval])) * 3600", "legendFormat": "{{status}} {{route}}" },
+        { "refId": "B", "expr": "sum(rate(timetable_http_requests_total{job=~\"$job\", status=\"404\"}[$__rate_interval])) * 3600", "legendFormat": "404 (all routes)" }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Cache hit ratio by kind",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 58 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (kind) (rate(timetable_cache_requests_total{job=~\"$job\", result=~\"memory_hit|redis_hit\"}[$__rate_interval])) / sum by (kind) (rate(timetable_cache_requests_total{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "{{kind}}" }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Internal problems (per hour)",
+      "description": "SQLite errors, usage log rows dropped (full queue), Redis errors/timeouts, rejected tokens.",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 58 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (db) (rate(timetable_sqlite_errors_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "sqlite {{db}}" },
+        { "refId": "B", "expr": "sum(rate(timetable_tracking_dropped_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "log rows dropped" },
+        { "refId": "C", "expr": "sum by (op, reason) (rate(timetable_redis_errors_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "redis {{op}} {{reason}}" },
+        { "refId": "D", "expr": "sum by (scope) (rate(timetable_auth_failures_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "auth failures {{scope}}" }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Redis",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 66 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "name", "colorMode": "none", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "expr": "max by (status) (timetable_redis_status{job=~\"$job\"}) == 1", "legendFormat": "{{status}}", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Cache entries (memory)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 66 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value", "colorMode": "none", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum(timetable_cache_entries{job=~\"$job\"})", "legendFormat": "entries" }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "SQLite files",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 66 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name", "colorMode": "none", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "max by (db) (timetable_sqlite_file_bytes{job=~\"$job\"})", "legendFormat": "{{db}}", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "Memory (RSS)",
+      "description": "Linux only (read from /proc).",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 66 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value", "colorMode": "none", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "max(process_resident_memory_bytes{job=~\"$job\"} and on (instance) timetable_build_info{job=~\"$job\"})", "legendFormat": "rss" }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "CPU",
+      "description": "Linux only (read from /proc).",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 66 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value", "colorMode": "none", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "max(rate(process_cpu_seconds_total{job=~\"$job\"}[$__rate_interval]) and on (instance) timetable_build_info{job=~\"$job\"})", "legendFormat": "cpu" }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "Uptime / version",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 66 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name", "colorMode": "none", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "max by (version) ((time() - process_start_time_seconds{job=~\"$job\"}) * on (instance) group_left (version) timetable_build_info{job=~\"$job\"})", "legendFormat": "v{{version}}", "instant": true, "range": false }
+      ]
+    },
+
+    { "id": 104, "type": "row", "title": "Short links", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 70 }, "panels": [] },
+    {
+      "id": 27,
+      "type": "stat",
+      "title": "Short links stored",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 71 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value", "colorMode": "none", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "max(timetable_short_links{job=~\"$job\"})", "legendFormat": "links" }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "piechart",
+      "title": "Short link opens: QR vs link",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 71 },
+      "options": {
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (via, target, lang) (increase(timetable_short_link_opens_total{job=~\"$job\"}[$__range]))", "legendFormat": "{{via}} → {{target}} ({{lang}})", "instant": true, "range": false }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Short links per hour",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 71 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(timetable_short_links_created_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "created" },
+        { "refId": "B", "expr": "sum by (via) (rate(timetable_short_link_opens_total{job=~\"$job\"}[$__rate_interval])) * 3600", "legendFormat": "opened via {{via}}" }
+      ]
+    },
+
+    { "id": 105, "type": "row", "title": "Usage log (Infinity → /api/stats)", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 79 }, "panels": [] },
+    {
+      "id": 30,
+      "type": "table",
+      "title": "Requests in the selected range (newest first, max 500)",
+      "description": "Empty track_id = anonymous request. Filter with the 'Log: …' variables at the top.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "${DS_INFINITY}" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 80 },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false, "reducer": ["count"], "countRows": true } },
+      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "${DS_INFINITY}" },
+          "type": "json",
+          "source": "url",
+          "parser": "backend",
+          "format": "table",
+          "url": "/api/stats/requests?kind=${kind}&anonymous=${anonymous}&track_id=${track_id}&from=${__from}&to=${__to}&limit=500",
+          "url_options": { "method": "GET", "data": "" },
+          "root_selector": "",
+          "columns": [
+            { "selector": "at", "text": "at", "type": "timestamp" },
+            { "selector": "kind", "text": "kind", "type": "string" },
+            { "selector": "endpoint", "text": "endpoint", "type": "string" },
+            { "selector": "track_id", "text": "track_id", "type": "string" },
+            { "selector": "university", "text": "university", "type": "string" },
+            { "selector": "params", "text": "params", "type": "string" },
+            { "selector": "weeks", "text": "weeks", "type": "number" },
+            { "selector": "name", "text": "name", "type": "string" },
+            { "selector": "short_code", "text": "short_code", "type": "string" },
+            { "selector": "client", "text": "client", "type": "string" },
+            { "selector": "status", "text": "status", "type": "number" },
+            { "selector": "user_agent", "text": "user_agent", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "type": "table",
+      "title": "Subscribers (last seen first, max 500)",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "${DS_INFINITY}" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 92 },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false, "reducer": ["count"], "countRows": true } },
+      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "${DS_INFINITY}" },
+          "type": "json",
+          "source": "url",
+          "parser": "backend",
+          "format": "table",
+          "url": "/api/stats/feed-subscribers?limit=500",
+          "url_options": { "method": "GET", "data": "" },
+          "root_selector": "",
+          "columns": [
+            { "selector": "track_id", "text": "track_id", "type": "string" },
+            { "selector": "university", "text": "university", "type": "string" },
+            { "selector": "first_seen", "text": "first_seen", "type": "timestamp" },
+            { "selector": "last_seen", "text": "last_seen", "type": "timestamp" },
+            { "selector": "request_count", "text": "requests", "type": "number" },
+            { "selector": "last_client", "text": "client", "type": "string" },
+            { "selector": "last_params", "text": "params", "type": "string" }
+          ]
+        }
+      ]
+    }
+  ]
+}

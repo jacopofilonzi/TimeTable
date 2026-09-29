@@ -60,6 +60,12 @@ export function localize(text: Text, lang: Lang): string {
   return typeof text === 'string' ? text : (text[lang] ?? text.it);
 }
 
+/**
+ * Marks our own API calls: the backend doesn't track them (only calls from other clients count
+ * as API usage). Must match `OWN_FRONTEND_HEADER` in `backend/src/state/tracking.rs`.
+ */
+const OWN_FRONTEND = { 'X-TT-Client': 'web' } as const;
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -71,7 +77,7 @@ export class ApiError extends Error {
 
 async function get<T>(path: string, params?: Record<string, string>, signal?: AbortSignal): Promise<T> {
   const query = params ? `?${new URLSearchParams(params)}` : '';
-  const res = await fetch(`${BASE}/api${path}${query}`, { signal });
+  const res = await fetch(`${BASE}/api${path}${query}`, { signal, headers: OWN_FRONTEND });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new ApiError(res.status, body?.message ?? res.statusText);
@@ -102,7 +108,7 @@ export interface ClearReport {
 export async function clearCache(token: string): Promise<ClearReport> {
   const res = await fetch(`${BASE}/api/admin/cache`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...OWN_FRONTEND, Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -115,7 +121,7 @@ export async function clearCache(token: string): Promise<ClearReport> {
 export async function createShortLink(uni: string, params: Record<string, string>, weeks: number): Promise<string> {
   const res = await fetch(`${BASE}/api/short`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...OWN_FRONTEND, 'Content-Type': 'application/json' },
     body: JSON.stringify({ uni, params, weeks }),
   });
   if (!res.ok) {
@@ -138,7 +144,25 @@ export function shortUrlForQr(code: string): string {
   return `${location.origin.toUpperCase()}${BASE}/S/${code}`;
 }
 
-/** Absolute URL of the ICS feed for the given parameters. */
+const TRACK_ID_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+let trackIdValue: string | undefined;
+
+/**
+ * Random id (8 × `[A-Za-z0-9]`) added to the feed URL as `k`, to count distinct subscriptions.
+ * One per page load, kept in memory only: never in the wizard URL or in storage, so whoever opens
+ * a shared link gets their own.
+ */
+function trackId(): string {
+  if (!trackIdValue) {
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    // 256 % 62 ≠ 0: the slight bias doesn't matter for a counter.
+    trackIdValue = Array.from(bytes, (b) => TRACK_ID_CHARS[b % TRACK_ID_CHARS.length]).join('');
+  }
+  return trackIdValue;
+}
+
+/** Absolute URL of the ICS feed for the given parameters (plus the track id `k`). */
 export function icsUrl(uni: string, params: Record<string, string>): string {
-  return `${location.origin}${BASE}/api/universities/${uni}/lessons.ics?${new URLSearchParams(params)}`;
+  const query = new URLSearchParams({ ...params, k: trackId() });
+  return `${location.origin}${BASE}/api/universities/${uni}/lessons.ics?${query}`;
 }
