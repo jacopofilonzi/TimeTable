@@ -16,8 +16,11 @@ services:
       CACHE_LESSONS_TTL: ${CACHE_LESSONS_TTL:-21600}
       CACHE_OPTIONS_TTL: ${CACHE_OPTIONS_TTL:-86400}
       AUTH_TOKEN: ${AUTH_TOKEN:-}
+      SHORTLINK_DB: ${SHORTLINK_DB:-/data/shortlinks.db}
       RUST_LOG: info
       LOG_FORMAT: compact
+    volumes:
+      - shortlinks-data:/data
     depends_on:
       redis:
         condition: service_healthy
@@ -53,6 +56,8 @@ services:
 
 volumes:
   redis-data:
+  # Short links: unlike Redis this is not a cache, back it up.
+  shortlinks-data:
 
 networks:
   # Redis is reachable only from the timetable container.

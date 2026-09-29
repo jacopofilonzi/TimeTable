@@ -25,17 +25,7 @@ impl AppState {
         query: &HashMap<String, String>,
     ) -> Result<LessonsResult, AppError> {
         let info = uni.info();
-        let fields: Vec<&Field> = all_fields(info).collect();
-
-        let mut params = Params::new();
-        for field in &fields {
-            let value = required(query, field.key)?;
-            validate_shallow(field, value)?;
-            params.insert(field.key.to_string(), value.clone());
-        }
-        self.check_remote_values(uni, &fields, &params).await?;
-
-        let weeks = parse_weeks(query.get("weeks"), info.weeks)?;
+        let (params, weeks) = self.validate_lessons_query(uni, query).await?;
         let range = DateRange::current_weeks(Utc::now(), uni.timezone(), weeks);
         let key = format!(
             "lessons:{}:{}:{}:{weeks}",
@@ -50,6 +40,27 @@ impl AppState {
             })
             .await?;
         Ok(LessonsResult { lessons, range })
+    }
+
+    /// Every schema field (validated, remote values checked against their options) and `weeks`.
+    pub(super) async fn validate_lessons_query(
+        &self,
+        uni: &Arc<dyn University>,
+        query: &HashMap<String, String>,
+    ) -> Result<(Params, u8), AppError> {
+        let info = uni.info();
+        let fields: Vec<&Field> = all_fields(info).collect();
+
+        let mut params = Params::new();
+        for field in &fields {
+            let value = required(query, field.key)?;
+            validate_shallow(field, value)?;
+            params.insert(field.key.to_string(), value.clone());
+        }
+        self.check_remote_values(uni, &fields, &params).await?;
+
+        let weeks = parse_weeks(query.get("weeks"), info.weeks)?;
+        Ok((params, weeks))
     }
 
     /// Remote values must be among the (cached) options, so bogus values never reach the

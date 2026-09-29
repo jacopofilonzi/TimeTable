@@ -27,9 +27,11 @@ export default defineConfig({
       include: ['qrcode'],
     },
     server: {
-      // Dev only: forward API calls to the backend so the frontend can use relative URLs.
+      // Dev only: forward API calls and short links to the backend so the frontend can use
+      // relative URLs. A regex, since a plain '/s' prefix would also catch '/src/...'.
       proxy: {
         '/api': `http://127.0.0.1:${backendPort}`,
+        '^/[sS]/': `http://127.0.0.1:${backendPort}`,
       },
     },
   },

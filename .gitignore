@@ -1,5 +1,8 @@
 .env
 backend/target/
+# Short link database (SHORTLINK_DB default), from `backend/` or the repo root.
+backend/data/
+/data/
 frontend/node_modules/
 frontend/dist/
 frontend/.astro/

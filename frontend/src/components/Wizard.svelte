@@ -2,37 +2,34 @@
   import { onMount } from 'svelte';
   import { api, BASE, localize, type Field, type SelectOption, type Step, type University } from '../lib/api';
   import { useT, type Lang } from '../lib/i18n';
+  import { defaults, EMPTY, fields as schemaFields, fromQuery, stepIds, toQuery, type Progress } from '../lib/wizard-url';
   import FieldInput, { isChips } from './FieldInput.svelte';
   import ResultStep from './ResultStep.svelte';
   import Stepper from './Stepper.svelte';
 
   let { lang }: { lang: Lang } = $props();
   const t = $derived(useT(lang));
-  const otherLang = $derived(lang === 'it' ? { code: 'EN', href: `${BASE}/en/` } : { code: 'IT', href: `${BASE}/` });
 
   type WizardStep = { kind: 'university' } | { kind: 'fields'; step: Step } | { kind: 'options' } | { kind: 'result' };
 
-  /** Wizard progress, kept in sessionStorage so switching language or reloading doesn't lose it. */
-  interface Progress {
-    uniId: string | null;
-    values: Record<string, string>;
-    labels: Record<string, string>;
-    weeks: number;
-    name: string;
-    nameEdited: boolean;
-    index: number;
-  }
-  const STORAGE_KEY = 'timetable:wizard';
-  const EMPTY: Progress = { uniId: null, values: {}, labels: {}, weeks: 0, name: '', nameEdited: false, index: 0 };
-
   let universities = $state<University[] | null>(null);
   let loadError = $state<string | null>(null);
+  /** Wizard progress, mirrored in the page URL (see `lib/wizard-url.ts`). */
   let p = $state<Progress>(structuredClone(EMPTY));
-  /** Don't persist until the saved progress has been restored, or the initial state would overwrite it. */
-  let restored = false;
+  /** The progress has been read from the URL: don't write the URL before, or it would be lost. */
+  let ready = $state(false);
+  /** Step of the last URL written: moving to another step adds a history entry. */
+  let lastStep: string | undefined;
+  /** Discards URL restores overtaken by a newer one. */
+  let restoreToken = 0;
 
   const uni = $derived(universities?.find((u) => u.id === p.uniId) ?? null);
-  const fields = $derived<Field[]>(uni?.steps.flatMap((s) => s.fields) ?? []);
+  const fields = $derived<Field[]>(uni ? schemaFields(uni) : []);
+  const query = $derived(toQuery(uni, p));
+  const otherLang = $derived({
+    code: lang === 'it' ? 'EN' : 'IT',
+    href: `${BASE}/${lang === 'it' ? 'en/' : ''}${query ? `?${query}` : ''}`,
+  });
   const steps = $derived<WizardStep[]>([
     { kind: 'university' },
     ...(uni?.steps ?? []).map((step) => ({ kind: 'fields' as const, step })),
@@ -55,9 +52,11 @@
     }
   });
 
-  const defaultName = $derived(
-    uni ? [localize(uni.name, lang), ...fields.map((f) => p.labels[f.key])].filter(Boolean).join(' · ') : '',
-  );
+  const defaultName = $derived(uni ? nameFor(uni, p.labels) : '');
+
+  function nameFor(u: University, labels: Record<string, string>): string {
+    return [localize(u.name, lang), ...schemaFields(u).map((f) => labels[f.key])].filter(Boolean).join(' · ');
+  }
 
   function stepTitle(s: WizardStep): string {
     switch (s.kind) {
@@ -76,48 +75,49 @@
     const controller = new AbortController();
     api
       .universities(controller.signal)
-      .then((list) => {
+      .then(async (list) => {
         universities = list;
-        restore(list);
+        await restore(list);
+        ready = true;
       })
       .catch((e) => {
         if (!controller.signal.aborted) loadError = e.message || t('error.load');
       });
-    return () => controller.abort();
+    // Back/forward: the URL of that history entry becomes the progress.
+    const onPopState = () => {
+      if (universities && ready) restore(universities);
+    };
+    addEventListener('popstate', onPopState);
+    return () => {
+      controller.abort();
+      removeEventListener('popstate', onPopState);
+    };
   });
 
+  // Mirror the progress in the URL: a new history entry per step, in-place updates otherwise.
   $effect(() => {
-    const snapshot = JSON.stringify(p);
-    if (!restored) return;
-    try {
-      sessionStorage.setItem(STORAGE_KEY, snapshot);
-    } catch {
-      /* storage unavailable */
+    const q = query;
+    if (!ready) return;
+    const step = stepIds(uni)[p.index];
+    const href = `${location.pathname}${q ? `?${q}` : ''}`;
+    if (href !== location.pathname + location.search) {
+      if (lastStep !== undefined && step !== lastStep) history.pushState(null, '', href);
+      else history.replaceState(null, '', href);
     }
+    lastStep = step;
   });
 
-  function restore(list: University[]) {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null') as Progress | null;
-      if (saved && list.some((u) => u.id === saved.uniId)) p = saved;
-    } catch {
-      /* ignore corrupted or unavailable storage */
-    }
-    restored = true;
+  async function restore(list: University[]) {
+    const token = ++restoreToken;
+    const next = await fromQuery(location.search, list, lang, p, nameFor);
+    if (token !== restoreToken) return;
+    lastStep = stepIds(list.find((u) => u.id === next.uniId) ?? null)[next.index];
+    p = next;
   }
 
   function selectUniversity(u: University) {
     if (p.uniId !== u.id) {
-      const values: Record<string, string> = {};
-      const labels: Record<string, string> = {};
-      for (const f of u.steps.flatMap((s) => s.fields)) {
-        const def = f.type === 'select' && f.default ? f.options.find((o) => o.value === f.default) : undefined;
-        if (def) {
-          values[f.key] = def.value;
-          labels[f.key] = localize(def.label, lang);
-        }
-      }
-      p = { ...structuredClone(EMPTY), uniId: u.id, values, labels, weeks: u.weeks.default };
+      p = { ...structuredClone(EMPTY), ...defaults(u, lang), uniId: u.id, weeks: u.weeks.default };
     }
     go(1);
   }
@@ -210,7 +210,7 @@
         <p>{t('error.load')}</p>
         <p class="mt-1 text-xs opacity-75">{loadError}</p>
       </div>
-    {:else if !universities}
+    {:else if !universities || !ready}
       <div class="space-y-3">
         <div class="h-4 w-24 animate-pulse rounded bg-neutral-100"></div>
         <div class="h-8 w-2/3 animate-pulse rounded bg-neutral-100"></div>

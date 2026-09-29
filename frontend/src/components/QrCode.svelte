@@ -1,5 +1,5 @@
 <script lang="ts">
-  let { url, hint, errorText }: { url: string; hint: string; errorText: string } = $props();
+  let { url, errorText }: { url: string; errorText: string } = $props();
 
   let src = $state<string | null>(null);
   let failed = $state(false);
@@ -22,8 +22,7 @@
   });
 </script>
 
-<p class="text-center text-sm text-neutral-500">{hint}</p>
-<div class="mx-auto mt-4 aspect-square w-full max-w-72">
+<div class="mx-auto aspect-square w-full max-w-72">
   {#if src}
     <img {src} alt="QR code" class="h-full w-full [image-rendering:pixelated]" />
   {:else if failed}

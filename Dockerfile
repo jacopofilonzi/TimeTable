@@ -21,17 +21,22 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs \
 COPY backend/src ./src
 RUN touch src/main.rs \
     && cargo build --release --locked \
-    && mkdir /app && cp target/release/timetable /app/timetable
+    && mkdir /app && cp target/release/timetable /app/timetable \
+    && mkdir /data
 
 # ─── 3. Runtime ────────────────────────────────────────────────────────────────
 FROM gcr.io/distroless/cc-debian12:nonroot
 COPY --from=frontend /www /www
 COPY --from=backend /app /app
+# Short link database directory, writable by the nonroot user (a named volume inherits this).
+COPY --from=backend --chown=65532:65532 /data /data
 ENV HOST=0.0.0.0 \
     PORT=8080 \
     STATIC_DIR=/www \
+    SHORTLINK_DB=/data/shortlinks.db \
     RUST_LOG=info \
     LOG_FORMAT=compact
+VOLUME /data
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD ["/app/timetable", "healthcheck"]

@@ -4,6 +4,7 @@ mod config;
 mod errors;
 mod ics;
 mod models;
+mod shortlinks;
 mod startup;
 mod state;
 mod static_files;
@@ -15,9 +16,7 @@ use crate::{cache::Cache, config::Config, state::AppState, universities::Registr
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Looks for `.env` in the current directory and its parents (so the repo root `.env` works
-    // when running from `backend/`). Real environment variables take precedence.
-    let env_file = dotenvy::dotenv().ok();
+    let env_file = startup::load_env_file();
     let config = Config::from_env();
 
     if std::env::args().nth(1).as_deref() == Some("healthcheck") {
@@ -29,15 +28,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         "TimeTable v{} — github.com/jacopofilonzi/TimeTable",
         env!("CARGO_PKG_VERSION")
     );
-    if let Some(path) = env_file {
-        tracing::info!("loaded environment from {}", path.display());
-    }
+    env_file.log();
 
     let static_files = startup::load_frontend(&config)?;
+    let short_links = match startup::open_short_links(&config) {
+        Ok(links) => links,
+        Err(err) => {
+            tracing::error!("{err}");
+            std::process::exit(1);
+        }
+    };
     let state = Arc::new(AppState {
         cache: Cache::new(config.redis_url.as_deref()),
         registry: Registry::new(),
         http: startup::http_client()?,
+        short_links,
         config: config.clone(),
     });
 

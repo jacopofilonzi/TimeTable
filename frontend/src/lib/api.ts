@@ -111,6 +111,33 @@ export async function clearCache(token: string): Promise<ClearReport> {
   return res.json();
 }
 
+/** `POST /api/short`: the short link code for these settings (the same settings always get the same code). */
+export async function createShortLink(uni: string, params: Record<string, string>, weeks: number): Promise<string> {
+  const res = await fetch(`${BASE}/api/short`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uni, params, weeks }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.message ?? res.statusText);
+  }
+  return ((await res.json()) as { code: string }).code;
+}
+
+/** Absolute URL of a short link. */
+export function shortUrl(code: string): string {
+  return `${location.origin}${BASE}/s/${code}`;
+}
+
+/**
+ * The same short link for QR codes: uppercase (scheme, host, `/S/` and code are case-insensitive)
+ * fits the denser QR alphanumeric mode. The base path keeps its case, routing needs it.
+ */
+export function shortUrlForQr(code: string): string {
+  return `${location.origin.toUpperCase()}${BASE}/S/${code}`;
+}
+
 /** Absolute URL of the ICS feed for the given parameters. */
 export function icsUrl(uni: string, params: Record<string, string>): string {
   return `${location.origin}${BASE}/api/universities/${uni}/lessons.ics?${new URLSearchParams(params)}`;

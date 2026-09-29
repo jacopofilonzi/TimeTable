@@ -5,6 +5,7 @@ mod base_path;
 mod env;
 mod log_format;
 mod secret;
+mod shortlink_db;
 mod static_dir;
 
 use std::{path::PathBuf, time::Duration};
@@ -26,6 +27,8 @@ pub struct Config {
     pub log_format: LogFormat,
     /// Token for the admin endpoints (`/api/admin/...`); they are disabled when unset.
     pub auth_token: Option<Secret>,
+    /// SQLite file for short links; `None` when disabled (`SHORTLINK_DB=false`).
+    pub shortlink_db: Option<PathBuf>,
 }
 
 impl Config {
@@ -40,6 +43,7 @@ impl Config {
             options_ttl: Duration::from_secs(env::parse("CACHE_OPTIONS_TTL").unwrap_or(24 * 3600)),
             log_format: LogFormat::from_env_value(env::var("LOG_FORMAT").as_deref()),
             auth_token: env::var("AUTH_TOKEN").map(Secret::new),
+            shortlink_db: shortlink_db::resolve(),
         }
     }
 }

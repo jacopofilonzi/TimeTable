@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::{Path, Query, State},
@@ -7,7 +7,7 @@ use axum::{
 };
 use chrono::Utc;
 
-use crate::{api::SharedState, errors::AppError, ics};
+use crate::{api::SharedState, errors::AppError, ics, state::AppState, universities::University};
 
 /// Longest accepted calendar name (`name` query parameter), in characters.
 const MAX_NAME_CHARS: usize = 100;
@@ -19,7 +19,16 @@ pub async fn get_lessons_ics(
     Query(query): Query<HashMap<String, String>>,
 ) -> Result<Response, AppError> {
     let uni = state.registry.get(&id)?;
-    let result = state.lessons(uni, &query).await?;
+    ics_response(&state, uni, &query).await
+}
+
+/// The feed for `query` (schema fields, `weeks`, optional `name`); shared with short links.
+pub(super) async fn ics_response(
+    state: &AppState,
+    uni: &Arc<dyn University>,
+    query: &HashMap<String, String>,
+) -> Result<Response, AppError> {
+    let result = state.lessons(uni, query).await?;
 
     let name: String = query
         .get("name")

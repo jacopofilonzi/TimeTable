@@ -58,3 +58,36 @@ pub fn canonical(params: &Params) -> String {
         .collect::<Vec<_>>()
         .join("&")
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::universities::Registry;
+
+    /// Query parameters of the wizard page and of the lessons endpoints next to the fields.
+    const RESERVED_KEYS: [&str; 4] = ["uni", "step", "weeks", "name"];
+    /// `step=` values the frontend uses for its own steps.
+    const RESERVED_STEP_IDS: [&str; 3] = ["university", "options", "result"];
+
+    #[test]
+    fn schemas_avoid_reserved_names() {
+        for uni in Registry::new().all() {
+            let info = uni.info();
+            for step in &info.steps {
+                assert!(
+                    !RESERVED_STEP_IDS.contains(&step.id),
+                    "{}: step id '{}' is reserved",
+                    info.id,
+                    step.id
+                );
+                for field in &step.fields {
+                    assert!(
+                        !RESERVED_KEYS.contains(&field.key),
+                        "{}: field key '{}' is reserved",
+                        info.id,
+                        field.key
+                    );
+                }
+            }
+        }
+    }
+}
