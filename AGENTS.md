@@ -5,6 +5,9 @@ For what lives where and how the pieces fit together, read [STRUCTURE.md](STRUCT
 
 ## Workflow
 
+- **Plan first, code only after approval.** For every request, start with a planning phase: read what you need,
+  then present a plan (what changes, which files, trade-offs, open questions). Don't write or edit code until the
+  user explicitly approves the plan; if the plan changes significantly along the way, stop and ask again.
 - Run commands from the repo root through the Makefile (`make help` lists them). `make dev` starts backend
   (`:8080`) and Astro (`:4321`, hot reload, `/api` proxied).
 - **Always run `make check` before declaring work done.** It runs `cargo fmt --check`, `clippy -D warnings`,
@@ -14,6 +17,10 @@ For what lives where and how the pieces fit together, read [STRUCTURE.md](STRUCT
 - Every new env var goes in `backend/src/config/` **and** is documented in `.env.example` (and, if relevant
   for deployment, in `docker-compose.yml`).
 - Don't commit or push unless asked. Never commit `.env`.
+- **Keep the agent docs in sync, in the same change.** `STRUCTURE.md` and this file exist so agents don't have to
+  re-read the whole repo: when you add, move, rename or delete a file or module, change an API endpoint, env var,
+  cache behaviour, invariant or workflow command, update `STRUCTURE.md` / `AGENTS.md` accordingly. Before declaring
+  work done, check that every path, name and value they mention for the areas you touched still matches the code.
 
 ## Invariants — don't break these
 

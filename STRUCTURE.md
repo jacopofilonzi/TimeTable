@@ -143,7 +143,7 @@ User-facing strings in the schema are `Text`: either a plain string or `{ it, en
 | `components/Modal.svelte` | generic `<dialog>` wrapper; content is mounted only while open (lazy loading) |
 | `components/QrCode.svelte` | QR code of the feed URL; `qrcode` is dynamically imported (separate chunk) |
 | `components/Icon.svelte` | inline stroke icons (Lucide paths) |
-| `lib/api.ts` | API types (mirror `backend/src/models.rs`), fetch helpers, `BASE`, `icsUrl()` |
+| `lib/api.ts` | API types (mirror `backend/src/models/`), fetch helpers, `BASE`, `icsUrl()` |
 | `lib/i18n.ts` | IT/EN dictionaries (`en` is typed against `it`: a missing key is a type error) |
 | `styles/global.css` | Tailwind theme tokens and `@utility` classes (`btn-*`, `input`, `code-block`) |
 
